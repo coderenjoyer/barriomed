@@ -206,7 +206,8 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
                                     onPress={() => setStep('role')}
                                     style={styles.backButton}
                                 >
-                                    <Text style={styles.backButtonText}>← Back to role selection</Text>
+                                    <Feather name="arrow-left" size={18} color="#0D9488" />
+                                    <Text style={styles.backButtonText}>Back to User Selection</Text>
                                 </TouchableOpacity>
                                 <PhoneInput onSubmit={handlePhoneSubmit} isLoading={isLoading} />
                             </View>
@@ -359,11 +360,21 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     backButton: {
-        marginBottom: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        backgroundColor: '#F0FDFA',
+        borderRadius: 12,
+        marginBottom: 24,
+        borderWidth: 1,
+        borderColor: '#CCFBF1',
     },
     backButtonText: {
-        fontSize: 14,
-        color: '#6B7280',
+        fontSize: 15,
+        color: '#0D9488',
+        fontWeight: '600',
     },
     helpButton: {
         marginTop: 32,

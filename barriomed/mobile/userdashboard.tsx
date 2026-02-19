@@ -5,9 +5,45 @@ import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { BottomNavigation } from '../components/bottomnav';
 import { ServiceSelector, ServiceType } from '../components/selectservice';
 import { QueueTicket } from '../components/queueticket';
-import { MedicineInventory } from '../components/medicine_inventory';
+import { BotikaPage } from '../components/botikamanagement';
 import { ImmunizationTimeline } from '../components/immunotimeline';
 import { FloatingActionButton } from '../components/floatingactionbutton';
+import { FamilyMemberCard, FamilyMember } from '../components/yellowcard';
+import { VaccineTimeline, VaccineRecord } from '../components/vaccinetimeline';
+
+// Mock Data for Family Members
+const familyMembers: FamilyMember[] = [
+    {
+        id: '1',
+        name: 'Sarah Anderson',
+        relation: 'Me',
+        pendingCount: 0,
+        stats: { age: '28', weight: '55kg', height: '165cm', lastVisit: 'Dec 15' }
+    },
+    {
+        id: '2',
+        name: 'Mark Anderson',
+        relation: 'Spouse',
+        pendingCount: 0,
+        stats: { age: '30', weight: '75kg', height: '178cm', lastVisit: 'Nov 20' }
+    },
+    {
+        id: '3',
+        name: 'Leo Anderson',
+        relation: 'Son',
+        pendingCount: 1,
+        avatar: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
+        stats: { age: '2', weight: '12kg', height: '85cm', lastVisit: 'Jan 10' }
+    },
+];
+
+// Mock Data for Vaccines
+const vaccineRecords: VaccineRecord[] = [
+    { id: '1', vaccine: 'Hepatitis B (Dose 1)', date: '2022-01-15', status: 'completed', location: 'City Health Center' },
+    { id: '2', vaccine: 'DTaP (Dose 1)', date: '2022-03-01', status: 'completed', location: 'City Health Center' },
+    { id: '3', vaccine: 'Influenza', date: '2023-11-10', status: 'completed', location: 'Barrio Med Clinic' },
+    { id: '4', vaccine: 'COVID-19 Booster', date: '2024-03-15', status: 'pending' },
+];
 
 interface UserDashboardProps {
     onLogout?: () => void;
@@ -15,10 +51,11 @@ interface UserDashboardProps {
 
 export function UserDashboard({ onLogout }: UserDashboardProps) {
     const [activeTab, setActiveTab] = useState('home');
-    const [isQueueing, setIsQueueing] = useState(true); // Set to true to show queue status
-    const [selectedService, setSelectedService] = useState<ServiceType | null>('consultation' as ServiceType);
+    const [isQueueing, setIsQueueing] = useState(false); // Set to true to show queue status
+    const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showServiceSelector, setShowServiceSelector] = useState(false);
+    const [selectedMemberId, setSelectedMemberId] = useState('1');
 
     // Mock data for the ticket
     const [ticketData, setTicketData] = useState({
@@ -152,12 +189,15 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
         switch (activeTab) {
             case 'home':
                 return (
-                    <View style={styles.homeContent}>
-                        {isQueueing && renderQueueStatusCard()}
-                        {renderQuickActions()}
-                        <MedicineInventory />
-                        <ImmunizationTimeline />
-                    </View>
+                    <ScrollView contentContainerStyle={styles.scrollContent}>
+                        {renderHeader()}
+                        <View style={styles.homeContent}>
+                            {isQueueing && renderQueueStatusCard()}
+                            {renderQuickActions()}
+                            <BotikaPage scrollEnabled={false} />
+                            <ImmunizationTimeline />
+                        </View>
+                    </ScrollView>
                 );
             case 'queue':
                 if (!isQueueing) {
@@ -189,15 +229,69 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 );
             case 'botika':
                 return (
-                    <View style={styles.tabContent}>
-                        <MedicineInventory />
+                    <View style={{ flex: 1 }}>
+                        <BotikaPage scrollEnabled={true} />
                     </View>
                 );
             case 'records':
                 return (
-                    <View style={styles.tabContent}>
-                        <ImmunizationTimeline />
-                    </View>
+                    <ScrollView contentContainerStyle={styles.scrollContent}>
+                        <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 }}>
+                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1F2937', marginBottom: 16 }}>
+                                Family Records
+                            </Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -8 }}>
+                                <View style={{ flexDirection: 'row', paddingHorizontal: 8 }}>
+                                    {familyMembers.map((member, index) => (
+                                        <FamilyMemberCard
+                                            key={member.id}
+                                            member={member}
+                                            isSelected={selectedMemberId === member.id}
+                                            onClick={() => setSelectedMemberId(member.id)}
+                                            index={index}
+                                        />
+                                    ))}
+                                </View>
+                            </ScrollView>
+                        </View>
+
+                        <View style={{ paddingHorizontal: 24 }}>
+                            <View style={styles.queueCard}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+                                    <View>
+                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1F2937' }}>
+                                            {familyMembers.find(m => m.id === selectedMemberId)?.name}
+                                        </Text>
+                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                                            {familyMembers.find(m => m.id === selectedMemberId)?.relation} • {familyMembers.find(m => m.id === selectedMemberId)?.stats.age} yrs old
+                                        </Text>
+                                    </View>
+                                    <TouchableOpacity style={{ padding: 8, backgroundColor: '#F3F4F6', borderRadius: 8 }}>
+                                        <Feather name="edit-2" size={16} color="#4B5563" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', marginBottom: 16 }}>
+                                    <View style={{ alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>Weight</Text>
+                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>{familyMembers.find(m => m.id === selectedMemberId)?.stats.weight}</Text>
+                                    </View>
+                                    <View style={{ width: 1, backgroundColor: '#F3F4F6' }} />
+                                    <View style={{ alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>Height</Text>
+                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>{familyMembers.find(m => m.id === selectedMemberId)?.stats.height}</Text>
+                                    </View>
+                                    <View style={{ width: 1, backgroundColor: '#F3F4F6' }} />
+                                    <View style={{ alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>Last Visit</Text>
+                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>{familyMembers.find(m => m.id === selectedMemberId)?.stats.lastVisit}</Text>
+                                    </View>
+                                </View>
+
+                                <VaccineTimeline records={vaccineRecords} />
+                            </View>
+                        </View>
+                    </ScrollView>
                 );
             case 'chat':
                 return (
@@ -219,10 +313,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
             <View style={[styles.blurCircle, styles.blurCircleBottom]} />
 
             <SafeAreaView style={styles.safeArea} edges={['top']}>
-                <ScrollView contentContainerStyle={styles.scrollContent}>
-                    {activeTab === 'home' && renderHeader()}
-                    {renderContent()}
-                </ScrollView>
+                {renderContent()}
             </SafeAreaView>
 
             {activeTab === 'home' && <FloatingActionButton onPress={handleGetQueueNumber} />}

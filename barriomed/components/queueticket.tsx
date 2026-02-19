@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Dimensions } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
-import { ServiceType } from './serviceselect';
+import { ServiceType } from './selectservice';
 
 interface QueueTicketProps {
     serviceType: ServiceType;
@@ -28,6 +28,7 @@ export function QueueTicket({
             case 'prenatal': return 'Prenatal Care';
             case 'immunization': return 'Immunization';
             case 'dental': return 'Dental Services';
+            default: return 'Unknown Service';
         }
     };
 
@@ -44,6 +45,9 @@ export function QueueTicket({
             };
             case 'dental': return {
                 bg: '#EFF6FF', text: '#2563EB', border: '#DBEAFE'
+            };
+            default: return {
+                bg: '#F3F4F6', text: '#6B7280', border: '#E5E7EB'
             };
         }
     };

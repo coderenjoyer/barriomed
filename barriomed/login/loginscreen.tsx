@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PhoneInput } from '../components/logininput';
 import { OTPInput } from '../components/otpinput';
@@ -73,6 +74,21 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
     const [phoneNumber, setPhoneNumber] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
+    useEffect(() => {
+        const checkSavedRole = async () => {
+            try {
+                const savedRole = await AsyncStorage.getItem('userRole');
+                if (savedRole && roles.some(r => r.id === savedRole)) {
+                    setSelectedRole(savedRole as UserRole);
+                    setStep('phone');
+                }
+            } catch (error) {
+                console.error('Error loading saved role:', error);
+            }
+        };
+        checkSavedRole();
+    }, []);
+
     const handleRoleSelect = (role: UserRole) => {
         setSelectedRole(role);
     };
@@ -102,9 +118,14 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
         }, 1500);
     };
 
-    const handlePINComplete = (pin: string) => {
+    const handlePINComplete = async (pin: string) => {
         // Complete login and redirect based on role
         if (onLoginComplete && selectedRole) {
+            try {
+                await AsyncStorage.setItem('userRole', selectedRole);
+            } catch (error) {
+                console.error('Error saving role:', error);
+            }
             onLoginComplete(selectedRole);
         }
     };
@@ -207,7 +228,7 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
                                     style={styles.backButton}
                                 >
                                     <Feather name="arrow-left" size={18} color="#0D9488" />
-                                    <Text style={styles.backButtonText}>Back to User Selection</Text>
+                                    <Text style={styles.backButtonText}>Switch Role</Text>
                                 </TouchableOpacity>
                                 <PhoneInput onSubmit={handlePhoneSubmit} isLoading={isLoading} />
                             </View>

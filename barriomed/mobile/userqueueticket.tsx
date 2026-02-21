@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ServiceSelector, ServiceType } from '../components/selectservice';
-import { QueueTicket } from '../components/queueticket';
+import { ServiceSelector, ServiceType } from '../components/patient/selectservice';
+import { QueueTicket } from '../components/patient/queueticket';
 
 export function QueuePage() {
     const [step, setStep] = useState<'selection' | 'ticket'>('selection');

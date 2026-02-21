@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
-import { BottomNavigation } from '../components/bottomnav';
-import { ServiceSelector, ServiceType } from '../components/selectservice';
-import { QueueTicket } from '../components/queueticket';
-import { BotikaPage } from '../components/botikamanagement';
-import { ImmunizationTimeline } from '../components/immunotimeline';
-import { FloatingActionButton } from '../components/floatingactionbutton';
-import { FamilyMemberCard, FamilyMember } from '../components/yellowcard';
-import { VaccineTimeline, VaccineRecord } from '../components/vaccinetimeline';
+import { BottomNavigation } from '../components/patient/bottomnav';
+import { ServiceSelector, ServiceType } from '../components/patient/selectservice';
+import { QueueTicket } from '../components/patient/queueticket';
+import { BotikaPage } from '../components/patient/botikamanagement';
+import { ImmunizationTimeline } from '../components/patient/immunotimeline';
+import { FloatingActionButton } from '../components/patient/floatingactionbutton';
+import { FamilyMemberCard, FamilyMember } from '../components/patient/yellowcard';
+import { VaccineTimeline, VaccineRecord } from '../components/patient/vaccinetimeline';
 
 // Mock Data for Family Members
 const familyMembers: FamilyMember[] = [

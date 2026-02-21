@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PhoneInput } from '../components/logininput';
-import { OTPInput } from '../components/otpinput';
-import { PINSetup } from '../components/pinsetup';
+import { PhoneInput } from '../components/patient/logininput';
+import { OTPInput } from '../components/patient/otpinput';
+import { PINSetup } from '../components/patient/pinsetup';
 import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export type UserRole = 'patient' | 'staff' | 'admin' | 'doctor';

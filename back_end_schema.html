@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>B-Health Connect — Backend Schema</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #060d1a;
+    --surface:   #0d1b2e;
+    --card:      #0f2340;
+    --border:    #1a3a5c;
+    --accent:    #00d4ff;
+    --accent2:   #00ff9d;
+    --accent3:   #ff6b6b;
+    --accent4:   #ffd166;
+    --accent5:   #b388ff;
+    --text:      #e2eaf4;
+    --muted:     #5a7fa0;
+    --mono:      'Space Mono', monospace;
+    --sans:      'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID NOISE BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: relative;
+    z-index: 10;
+    padding: 56px 64px 32px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header-eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .header-title {
+    font-family: var(--mono);
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 700;
+    line-height: 1.1;
+    background: linear-gradient(135deg, #fff 30%, var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+  }
+  .header-sub {
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 300;
+    letter-spacing: 0.5px;
+  }
+  .header-meta {
+    display: flex;
+    gap: 24px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  .meta-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 12px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+  .meta-badge.blue  { background: rgba(0,212,255,0.1);  color: var(--accent);  border: 1px solid rgba(0,212,255,0.3);  }
+  .meta-badge.green { background: rgba(0,255,157,0.1);  color: var(--accent2); border: 1px solid rgba(0,255,157,0.3);  }
+  .meta-badge.red   { background: rgba(255,107,107,0.1);color: var(--accent3); border: 1px solid rgba(255,107,107,0.3);}
+
+  /* ── NAV PILLS ── */
+  nav {
+    position: relative;
+    z-index: 10;
+    padding: 16px 64px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+    background: rgba(6,13,26,0.8);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+  }
+  .nav-pill {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 2px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    background: transparent;
+    transition: all 0.2s;
+    text-decoration: none;
+    letter-spacing: 0.5px;
+  }
+  .nav-pill:hover, .nav-pill.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(0,212,255,0.06);
+  }
+
+  /* ── MAIN LAYOUT ── */
+  main {
+    position: relative;
+    z-index: 1;
+    padding: 48px 64px;
+    max-width: 1600px;
+  }
+
+  section {
+    margin-bottom: 72px;
+    scroll-margin-top: 60px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .section-number {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    border: 1px solid rgba(0,212,255,0.3);
+    padding: 4px 8px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+  .section-title {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  /* ── ARCHITECTURE DIAGRAM ── */
+  .arch-diagram {
+    display: grid;
+    grid-template-columns: 1fr 60px 1fr 60px 1fr;
+    gap: 0;
+    align-items: stretch;
+    margin-bottom: 24px;
+  }
+  .arch-layer {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .arch-layer-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .arch-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .arch-item .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .arch-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--muted);
+  }
+  .arch-arrow svg { opacity: 0.5; }
+  .arch-arrow span { font-size: 9px; font-family: var(--mono); letter-spacing: 1px; color: var(--muted); text-align: center; }
+
+  .layer-mobile  .arch-item { background: rgba(0,212,255,0.07); }
+  .layer-mobile  .dot { background: var(--accent); }
+  .layer-cloud   .arch-item { background: rgba(0,255,157,0.07); }
+  .layer-cloud   .dot { background: var(--accent2); }
+  .layer-service .arch-item { background: rgba(179,136,255,0.07); }
+  .layer-service .dot { background: var(--accent5); }
+
+  /* ── TABLE GRID ── */
+  .table-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+  }
+
+  .table-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: default;
+  }
+  .table-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .table-card-header {
+    padding: 16px 20px 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .table-name {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .table-name span {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--muted);
+    display: block;
+    margin-top: 2px;
+    letter-spacing: 0.5px;
+  }
+  .table-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    margin-left: 8px;
+    margin-top: 2px;
+  }
+
+  .table-columns {
+    padding: 12px 0;
+  }
+  .col-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 90px 90px;
+    gap: 6px;
+    padding: 5px 20px;
+    font-size: 12px;
+    align-items: center;
+    transition: background 0.15s;
+  }
+  .col-row:hover { background: rgba(255,255,255,0.03); }
+
+  .col-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+  }
+  .col-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+  }
+  .col-name.pk  { color: var(--accent4); }
+  .col-name.fk  { color: var(--accent5); }
+  .col-type {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-align: right;
+  }
+  .col-constraint {
+    font-family: var(--mono);
+    font-size: 9px;
+    text-align: right;
+    padding: 2px 6px;
+    border-radius: 2px;
+    white-space: nowrap;
+  }
+  .con-pk   { background: rgba(255,209,102,0.15); color: var(--accent4); }
+  .con-fk   { background: rgba(179,136,255,0.15); color: var(--accent5); }
+  .con-uq   { background: rgba(0,212,255,0.12);   color: var(--accent);  }
+  .con-idx  { background: rgba(0,255,157,0.12);   color: var(--accent2); }
+  .con-chk  { background: rgba(255,107,107,0.12); color: var(--accent3); }
+  .con-null { background: rgba(90,127,160,0.15);  color: var(--muted);   }
+
+  .table-footer {
+    padding: 10px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  /* ── ENUMS ── */
+  .enum-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .enum-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px 20px;
+  }
+  .enum-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent4);
+    margin-bottom: 10px;
+  }
+  .enum-values {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .enum-val {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 2px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  /* ── RLS TABLE ── */
+  .rls-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .rls-table th {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .rls-table td {
+    padding: 9px 16px;
+    border-bottom: 1px solid rgba(26,58,92,0.5);
+    vertical-align: top;
+  }
+  .rls-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .rls-table td:first-child { font-family: var(--mono); color: var(--accent4); font-size: 12px; }
+  .role-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 2px;
+    margin: 2px 2px 2px 0;
+  }
+  .role-resident { background: rgba(0,212,255,0.12);  color: var(--accent);  border: 1px solid rgba(0,212,255,0.2);  }
+  .role-staff    { background: rgba(0,255,157,0.12);  color: var(--accent2); border: 1px solid rgba(0,255,157,0.2);  }
+  .role-doctor   { background: rgba(179,136,255,0.12);color: var(--accent5); border: 1px solid rgba(179,136,255,0.2);}
+  .role-admin    { background: rgba(255,107,107,0.12);color: var(--accent3); border: 1px solid rgba(255,107,107,0.2);}
+
+  /* ── FUNCTIONS ── */
+  .fn-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+    gap: 20px;
+  }
+  .fn-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .fn-card:hover { border-color: var(--accent2); }
+  .fn-header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .fn-icon {
+    width: 32px; height: 32px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .fn-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--accent2);
+  }
+  .fn-trigger {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .fn-body {
+    padding: 14px 20px;
+  }
+  .fn-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+  .fn-steps {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .fn-steps li {
+    font-size: 12px;
+    color: var(--muted);
+    padding-left: 16px;
+    position: relative;
+    line-height: 1.5;
+  }
+  .fn-steps li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--accent2);
+    font-family: var(--mono);
+    font-size: 10px;
+    top: 1px;
+  }
+
+  /* ── INDEXES SECTION ── */
+  .idx-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 12px;
+  }
+  .idx-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 14px 18px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .idx-type-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 3px 7px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .idx-btree { background: rgba(0,212,255,0.12); color: var(--accent); border: 1px solid rgba(0,212,255,0.2); }
+  .idx-gin   { background: rgba(255,209,102,0.12); color: var(--accent4); border: 1px solid rgba(255,209,102,0.2); }
+  .idx-info { flex: 1; }
+  .idx-name { font-family: var(--mono); font-size: 12px; color: var(--text); margin-bottom: 3px; }
+  .idx-on { font-size: 11px; color: var(--muted); }
+
+  /* ── CRON SECTION ── */
+  .cron-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 16px;
+  }
+  .cron-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px 24px;
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+  }
+  .cron-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+  .cron-name { font-family: var(--mono); font-size: 14px; color: var(--accent4); margin-bottom: 4px; }
+  .cron-schedule { font-family: var(--mono); font-size: 11px; color: var(--accent2); margin-bottom: 6px; }
+  .cron-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow-track {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin-bottom: 20px;
+  }
+  .flow-step {
+    flex: 1;
+    min-width: 140px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+  }
+  .flow-step:not(:first-child)::before {
+    content: '';
+    position: absolute;
+    left: -1px; top: 50%;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border-top: 12px solid transparent;
+    border-bottom: 12px solid transparent;
+    border-left: 14px solid var(--bg);
+    z-index: 2;
+  }
+  .flow-step:not(:first-child)::after {
+    content: '';
+    position: absolute;
+    left: -2px; top: 50%;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border-top: 13px solid transparent;
+    border-bottom: 13px solid transparent;
+    border-left: 15px solid var(--border);
+    z-index: 1;
+  }
+  .flow-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 1px;
+  }
+  .flow-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.3;
+  }
+  .flow-detail {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* ── REQ TRACEABILITY ── */
+  .req-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px;
+  }
+  .req-row {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 10px 14px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 12px;
+  }
+  .req-id {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    flex-shrink: 0;
+    min-width: 100px;
+  }
+  .req-desc { color: var(--muted); line-height: 1.4; }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 16px 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 24px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  section { animation: fadeInUp 0.5s ease both; }
+  section:nth-child(1) { animation-delay: 0.05s; }
+  section:nth-child(2) { animation-delay: 0.1s; }
+  section:nth-child(3) { animation-delay: 0.15s; }
+  section:nth-child(4) { animation-delay: 0.2s; }
+  section:nth-child(5) { animation-delay: 0.25s; }
+  section:nth-child(6) { animation-delay: 0.3s; }
+
+  @media (max-width: 900px) {
+    header, nav, main { padding-left: 24px; padding-right: 24px; }
+    .arch-diagram { grid-template-columns: 1fr; }
+    .arch-arrow { display: none; }
+    .flow-track { flex-direction: column; }
+    .flow-step::before, .flow-step::after { display: none; }
+  }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-eyebrow">// DATABASE SCHEMA REFERENCE</div>
+  <div class="header-title">B-Health Connect</div>
+  <div class="header-sub">Supabase / PostgreSQL — Barangay Health Link v2.0</div>
+  <div class="header-meta">
+    <span class="meta-badge blue">13 TABLES</span>
+    <span class="meta-badge blue">6 ENUMS</span>
+    <span class="meta-badge green">6 FUNCTIONS</span>
+    <span class="meta-badge green">20+ INDEXES</span>
+    <span class="meta-badge red">FULL RLS</span>
+  </div>
+</header>
+
+<nav>
+  <a class="nav-pill active" href="#arch">ARCHITECTURE</a>
+  <a class="nav-pill" href="#flow">QUEUE FLOW</a>
+  <a class="nav-pill" href="#enums">ENUMS</a>
+  <a class="nav-pill" href="#tables">TABLES</a>
+  <a class="nav-pill" href="#rls">ROW-LEVEL SECURITY</a>
+  <a class="nav-pill" href="#functions">FUNCTIONS</a>
+  <a class="nav-pill" href="#indexes">INDEXES</a>
+  <a class="nav-pill" href="#cron">CRON JOBS</a>
+  <a class="nav-pill" href="#req">REQ TRACEABILITY</a>
+</nav>
+
+<main>
+
+<!-- ─── ARCHITECTURE ─── -->
+<section id="arch">
+  <div class="section-header">
+    <span class="section-number">01</span>
+    <span class="section-title">THREE-TIER ARCHITECTURE</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="arch-diagram">
+    <div class="arch-layer layer-mobile">
+      <div class="arch-layer-title">▸ CLIENT TIER</div>
+      <div class="arch-item"><div class="dot"></div>React Native (Expo APK)</div>
+      <div class="arch-item"><div class="dot"></div>WatermelonDB (SQLite)</div>
+      <div class="arch-item"><div class="dot"></div>SQLCipher Encryption</div>
+      <div class="arch-item"><div class="dot"></div>Offline Sync Queue</div>
+      <div class="arch-item"><div class="dot"></div>bcrypt PIN (local auth)</div>
+      <div class="arch-item"><div class="dot"></div>Web Dashboard (React)</div>
+    </div>
+    <div class="arch-arrow">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 10h12M12 6l4 4-4 4" stroke="#00d4ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>TLS 1.3<br>WebSocket</span>
+    </div>
+    <div class="arch-layer layer-cloud">
+      <div class="arch-layer-title">▸ SUPABASE CLOUD</div>
+      <div class="arch-item"><div class="dot"></div>PostgreSQL (RLS + pg_trgm)</div>
+      <div class="arch-item"><div class="dot"></div>PostgREST Auto-API</div>
+      <div class="arch-item"><div class="dot"></div>Supabase Auth (JWT)</div>
+      <div class="arch-item"><div class="dot"></div>Realtime (WebSocket)</div>
+      <div class="arch-item"><div class="dot"></div>Edge Functions (Deno)</div>
+      <div class="arch-item"><div class="dot"></div>pg_cron Scheduler</div>
+    </div>
+    <div class="arch-arrow">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M4 10h12M12 6l4 4-4 4" stroke="#00ff9d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>HTTP POST<br>SMS API</span>
+    </div>
+    <div class="arch-layer layer-service">
+      <div class="arch-layer-title">▸ EXTERNAL SERVICES</div>
+      <div class="arch-item"><div class="dot"></div>Semaphore SMS API</div>
+      <div class="arch-item"><div class="dot"></div>Android SMS Bridge</div>
+      <div class="arch-item"><div class="dot"></div>Cloudflare CDN (Phase 2)</div>
+      <div class="arch-item"><div class="dot"></div>Upstash Redis (Phase 2)</div>
+      <div class="arch-item"><div class="dot"></div>Expo EAS Build (CI/CD)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── QUEUE FLOW ─── -->
+<section id="flow">
+  <div class="section-header">
+    <span class="section-number">02</span>
+    <span class="section-title">VIRTUAL PILA — QUEUE FLOW</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="flow-track">
+    <div class="flow-step">
+      <div class="flow-num">STEP 01</div>
+      <div class="flow-label">Offline Request</div>
+      <div class="flow-detail">Resident taps queue in app. <code>local_token</code> UUID saved to WatermelonDB with status <code>pending_sync</code>.</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">STEP 02</div>
+      <div class="flow-label">Sync Detected</div>
+      <div class="flow-detail">Background service detects Wi-Fi/Data. Dequeues pending payloads and POSTs to <code>sync-queue-token</code> Edge Function.</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">STEP 03</div>
+      <div class="flow-label">Advisory Lock</div>
+      <div class="flow-detail"><code>assign_ticket_number()</code> acquires pg advisory lock keyed by <code>bhc_id + service_type</code> to prevent race conditions.</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">STEP 04</div>
+      <div class="flow-label">Number Assigned</div>
+      <div class="flow-detail">Server calculates <code>MAX(ticket_number)+1</code> for today's queue. UPSERTs on <code>local_token</code>. Returns number to app.</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">STEP 05</div>
+      <div class="flow-label">Staff Calls</div>
+      <div class="flow-detail">Staff clicks "Call Next" on web dashboard. <code>call-next-ticket</code> Edge Function updates status to <code>called</code>.</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">STEP 06</div>
+      <div class="flow-label">Realtime Push</div>
+      <div class="flow-detail">Broadcasts to <code>queue:{service_type}</code> channel. App receives WebSocket push instantly.</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-num">STEP 07</div>
+      <div class="flow-label">SMS Fallback</div>
+      <div class="flow-detail">If no WebSocket ACK within 5 seconds, Edge Function HTTP POSTs to Semaphore API to deliver SMS alert.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── ENUMS ─── -->
+<section id="enums">
+  <div class="section-header">
+    <span class="section-number">03</span>
+    <span class="section-title">CUSTOM ENUMS</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="enum-grid">
+    <div class="enum-card">
+      <div class="enum-name">user_role</div>
+      <div class="enum-values">
+        <span class="enum-val">resident</span>
+        <span class="enum-val">staff</span>
+        <span class="enum-val">doctor</span>
+        <span class="enum-val">admin</span>
+      </div>
+    </div>
+    <div class="enum-card">
+      <div class="enum-name">ticket_status</div>
+      <div class="enum-values">
+        <span class="enum-val">pending_sync</span>
+        <span class="enum-val">queued</span>
+        <span class="enum-val">called</span>
+        <span class="enum-val">completed</span>
+        <span class="enum-val">no_show</span>
+      </div>
+    </div>
+    <div class="enum-card">
+      <div class="enum-name">prescription_status</div>
+      <div class="enum-values">
+        <span class="enum-val">active</span>
+        <span class="enum-val">dispensed</span>
+        <span class="enum-val">expired</span>
+        <span class="enum-val">cancelled</span>
+      </div>
+    </div>
+    <div class="enum-card">
+      <div class="enum-name">link_request_status</div>
+      <div class="enum-values">
+        <span class="enum-val">pending</span>
+        <span class="enum-val">accepted</span>
+        <span class="enum-val">rejected</span>
+        <span class="enum-val">expired</span>
+      </div>
+    </div>
+    <div class="enum-card">
+      <div class="enum-name">sync_status</div>
+      <div class="enum-values">
+        <span class="enum-val">pending</span>
+        <span class="enum-val">synced</span>
+        <span class="enum-val">failed</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── TABLES ─── -->
+<section id="tables">
+  <div class="section-header">
+    <span class="section-number">04</span>
+    <span class="section-title">TABLE DEFINITIONS</span>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="col-constraint con-pk">PK</span> Primary Key</div>
+    <div class="legend-item"><span class="col-constraint con-fk">FK</span> Foreign Key</div>
+    <div class="legend-item"><span class="col-constraint con-uq">UQ</span> Unique</div>
+    <div class="legend-item"><span class="col-constraint con-idx">IDX</span> Indexed</div>
+    <div class="legend-item"><span class="col-constraint con-null">NULL</span> Nullable</div>
+    <div class="legend-item"><span class="col-constraint con-chk">CHK</span> Check Constraint</div>
+  </div>
+
+  <div class="table-grid">
+
+    <!-- users -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">users<span>public.users — mirrors auth.users</span></div></div>
+        <span class="table-tag con-pk" style="margin-top:4px">CORE</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">full_name</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon">📱</div><div class="col-name">phone_number</div><div class="col-type">TEXT</div><div class="col-constraint con-uq">UNIQUE</div></div>
+        <div class="col-row"><div class="col-icon">🔒</div><div class="col-name">pin_hash</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">role</div><div class="col-type">user_role</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon">🏥</div><div class="col-name fk">bhc_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → bhcs</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">is_active</div><div class="col-type">BOOL</div><div class="col-constraint con-null">DEFAULT TRUE</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">created_at</div><div class="col-type">TIMESTAMPTZ</div><div class="col-constraint con-null">AUTO</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">updated_at</div><div class="col-type">TIMESTAMPTZ</div><div class="col-constraint con-idx">TRIGGER</div></div>
+      </div>
+      <div class="table-footer">Extends auth.users. Soft-deleted via is_active. PIN is bcrypt hashed (cost 12) for offline auth.</div>
+    </div>
+
+    <!-- bhcs -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">bhcs<span>public.bhcs — Health Centers registry</span></div></div>
+        <span class="table-tag con-idx" style="margin-top:4px">CORE</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">name</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">address</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">municipality</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">province</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">is_active</div><div class="col-type">BOOL</div><div class="col-constraint con-null">DEFAULT TRUE</div></div>
+      </div>
+      <div class="table-footer">Multi-BHC scalability anchor. Every entity is scoped to a BHC via bhc_id FK.</div>
+    </div>
+
+    <!-- dependents -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">dependents<span>public.dependents — family members / infants</span></div></div>
+        <span class="table-tag" style="background:rgba(0,212,255,0.1);color:var(--accent);border:1px solid rgba(0,212,255,0.2);margin-top:4px">RES</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon">👤</div><div class="col-name fk">primary_user_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">full_name</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">birth_date</div><div class="col-type">DATE</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">sex</div><div class="col-type">TEXT</div><div class="col-constraint con-chk">CHK enum</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">notes</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">is_active</div><div class="col-type">BOOL</div><div class="col-constraint con-null">DEFAULT TRUE</div></div>
+      </div>
+      <div class="table-footer">REQ-RES-04. Infants / offline family members. Cascade-deletes when primary user is deleted.</div>
+    </div>
+
+    <!-- queue_tickets -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">queue_tickets<span>public.queue_tickets — Virtual Pila</span></div></div>
+        <span class="table-tag" style="background:rgba(0,255,157,0.1);color:var(--accent2);border:1px solid rgba(0,255,157,0.2);margin-top:4px">CORE</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon">🏥</div><div class="col-name fk">bhc_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → bhcs</div></div>
+        <div class="col-row"><div class="col-icon">👤</div><div class="col-name fk">user_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name fk">dependent_id</div><div class="col-type">UUID</div><div class="col-constraint con-null">FK NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">service_type</div><div class="col-type">TEXT</div><div class="col-constraint con-idx">IDX</div></div>
+        <div class="col-row"><div class="col-icon">🎟</div><div class="col-name">ticket_number</div><div class="col-type">INT</div><div class="col-constraint con-null">NULL→set</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">status</div><div class="col-type">ticket_status</div><div class="col-constraint con-idx">IDX</div></div>
+        <div class="col-row"><div class="col-icon">🔐</div><div class="col-name">local_token</div><div class="col-type">UUID</div><div class="col-constraint con-uq">UNIQUE</div></div>
+      </div>
+      <div class="table-footer">REQ-RES-02. ticket_number is NULL offline; assigned by assign_ticket_number() after sync. local_token prevents duplicate inserts on retry.</div>
+    </div>
+
+    <!-- consultations -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">consultations<span>public.consultations — SOAP visit records</span></div></div>
+        <span class="table-tag" style="background:rgba(179,136,255,0.1);color:var(--accent5);border:1px solid rgba(179,136,255,0.2);margin-top:4px">DOC</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon">🏥</div><div class="col-name fk">bhc_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → bhcs</div></div>
+        <div class="col-row"><div class="col-icon">👤</div><div class="col-name fk">patient_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+        <div class="col-row"><div class="col-icon">👨‍⚕️</div><div class="col-name fk">doctor_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+        <div class="col-row"><div class="col-icon">🎟</div><div class="col-name fk">ticket_id</div><div class="col-type">UUID</div><div class="col-constraint con-null">FK NULL</div></div>
+        <div class="col-row"><div class="col-icon">📋</div><div class="col-name">soap_subjective</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon">📋</div><div class="col-name">soap_objective</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon">📋</div><div class="col-name">soap_assessment</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon">📋</div><div class="col-name">soap_plan</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon">💓</div><div class="col-name">bp_systolic</div><div class="col-type">SMALLINT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon">🌡</div><div class="col-name">temp_celsius</div><div class="col-type">NUMERIC</div><div class="col-constraint con-null">NULL</div></div>
+      </div>
+      <div class="table-footer">REQ-DOC-02. Full vitals stored as structured columns for querying. SOAP notes are free text.</div>
+    </div>
+
+    <!-- medicines -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">medicines<span>public.medicines — E-Botika inventory</span></div></div>
+        <span class="table-tag" style="background:rgba(0,212,255,0.1);color:var(--accent);border:1px solid rgba(0,212,255,0.2);margin-top:4px">STF</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon">🏥</div><div class="col-name fk">bhc_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → bhcs</div></div>
+        <div class="col-row"><div class="col-icon">💊</div><div class="col-name">generic_name</div><div class="col-type">TEXT</div><div class="col-constraint con-idx">GIN IDX</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">brand_name</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">category</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon">🟢</div><div class="col-name">is_available</div><div class="col-type">BOOL</div><div class="col-constraint con-idx">IDX</div></div>
+        <div class="col-row"><div class="col-icon">👤</div><div class="col-name fk">updated_by</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+      </div>
+      <div class="table-footer">REQ-RES-03, REQ-STF-02. Green/Red traffic-light driven by is_available. GIN index enables fuzzy search for E-Prescribing.</div>
+    </div>
+
+    <!-- prescriptions -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">prescriptions<span>public.prescriptions — E-Reseta</span></div></div>
+        <span class="table-tag" style="background:rgba(179,136,255,0.1);color:var(--accent5);border:1px solid rgba(179,136,255,0.2);margin-top:4px">DOC</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon">📋</div><div class="col-name fk">consultation_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → consults</div></div>
+        <div class="col-row"><div class="col-icon">👤</div><div class="col-name fk">patient_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+        <div class="col-row"><div class="col-icon">👨‍⚕️</div><div class="col-name fk">doctor_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+        <div class="col-row"><div class="col-icon">📱</div><div class="col-name">qr_token</div><div class="col-type">UUID</div><div class="col-constraint con-uq">UNIQUE</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">status</div><div class="col-type">rx_status</div><div class="col-constraint con-idx">IDX</div></div>
+        <div class="col-row"><div class="col-icon">⏰</div><div class="col-name">expires_at</div><div class="col-type">TIMESTAMPTZ</div><div class="col-constraint con-idx">IDX</div></div>
+      </div>
+      <div class="table-footer">REQ-RES-06, REQ-DOC-03. qr_token is the opaque pharmacy scan key — never exposes patient UUID. Auto-expired by pg_cron.</div>
+    </div>
+
+    <!-- prescription_items -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">prescription_items<span>public.prescription_items — line items</span></div></div>
+        <span class="table-tag" style="background:rgba(179,136,255,0.1);color:var(--accent5);border:1px solid rgba(179,136,255,0.2);margin-top:4px">DOC</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon">📄</div><div class="col-name fk">prescription_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → rx</div></div>
+        <div class="col-row"><div class="col-icon">💊</div><div class="col-name fk">medicine_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → meds</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">dosage</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">frequency</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">instructions</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">quantity</div><div class="col-type">SMALLINT</div><div class="col-constraint con-null">NULL</div></div>
+      </div>
+      <div class="table-footer">Each prescribed medicine is a separate row. Cascade-deletes when parent prescription is removed.</div>
+    </div>
+
+    <!-- immunization_records -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">immunization_records<span>public.immunization_records — Yellow Card</span></div></div>
+        <span class="table-tag" style="background:rgba(0,212,255,0.1);color:var(--accent);border:1px solid rgba(0,212,255,0.2);margin-top:4px">RES</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon">👤</div><div class="col-name fk">patient_id</div><div class="col-type">UUID</div><div class="col-constraint con-null">NULL or…</div></div>
+        <div class="col-row"><div class="col-icon">👶</div><div class="col-name fk">dependent_id</div><div class="col-type">UUID</div><div class="col-constraint con-null">…NULL</div></div>
+        <div class="col-row"><div class="col-icon">🏥</div><div class="col-name fk">bhc_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → bhcs</div></div>
+        <div class="col-row"><div class="col-icon">💉</div><div class="col-name">vaccine_name</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">dose_number</div><div class="col-type">SMALLINT</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon">📅</div><div class="col-name">next_due_at</div><div class="col-type">TIMESTAMPTZ</div><div class="col-constraint con-idx">IDX</div></div>
+      </div>
+      <div class="table-footer">Digital replacement for the Yellow Card. CHECK constraint enforces record belongs to either a user OR a dependent — never both.</div>
+    </div>
+
+    <!-- audit_logs -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">audit_logs<span>public.audit_logs — append-only trail</span></div></div>
+        <span class="table-tag" style="background:rgba(255,107,107,0.1);color:var(--accent3);border:1px solid rgba(255,107,107,0.2);margin-top:4px">ADMIN</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon">👤</div><div class="col-name fk">actor_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+        <div class="col-row"><div class="col-icon">⚡</div><div class="col-name">action</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">target_table</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">target_id</div><div class="col-type">UUID</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon">📸</div><div class="col-name">before_snapshot</div><div class="col-type">JSONB</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon">📸</div><div class="col-name">after_snapshot</div><div class="col-type">JSONB</div><div class="col-constraint con-null">NULL</div></div>
+        <div class="col-row"><div class="col-icon">🌐</div><div class="col-name">ip_address</div><div class="col-type">INET</div><div class="col-constraint con-null">NULL</div></div>
+      </div>
+      <div class="table-footer">REQ-ADM-02. Append-only — no role can UPDATE or DELETE. Written exclusively via log_audit_event() SECURITY DEFINER function.</div>
+    </div>
+
+    <!-- duplicate_flags -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">duplicate_flags<span>public.duplicate_flags — merge queue</span></div></div>
+        <span class="table-tag" style="background:rgba(255,107,107,0.1);color:var(--accent3);border:1px solid rgba(255,107,107,0.2);margin-top:4px">ADMIN</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon">👤</div><div class="col-name fk">user_id_a</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+        <div class="col-row"><div class="col-icon">👤</div><div class="col-name fk">user_id_b</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+        <div class="col-row"><div class="col-icon">📊</div><div class="col-name">similarity_score</div><div class="col-type">NUMERIC</div><div class="col-constraint con-null">0.000–1.000</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">resolved</div><div class="col-type">BOOL</div><div class="col-constraint con-idx">IDX</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">resolved_by</div><div class="col-type">UUID</div><div class="col-constraint con-null">FK NULL</div></div>
+      </div>
+      <div class="table-footer">REQ-ADM-01. Populated by detect_duplicate_patients() pg_cron job. UNIQUE(user_id_a, user_id_b) prevents re-flagging same pair.</div>
+    </div>
+
+    <!-- sync_queue_items -->
+    <div class="table-card">
+      <div class="table-card-header">
+        <div><div class="table-name">sync_queue_items<span>public.sync_queue_items — offline sync</span></div></div>
+        <span class="table-tag" style="background:rgba(0,212,255,0.1);color:var(--accent);border:1px solid rgba(0,212,255,0.2);margin-top:4px">SYS</span>
+      </div>
+      <div class="table-columns">
+        <div class="col-row"><div class="col-icon">🔑</div><div class="col-name pk">id</div><div class="col-type">UUID</div><div class="col-constraint con-pk">PK</div></div>
+        <div class="col-row"><div class="col-icon">👤</div><div class="col-name fk">user_id</div><div class="col-type">UUID</div><div class="col-constraint con-fk">FK → users</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">endpoint</div><div class="col-type">TEXT</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">method</div><div class="col-type">TEXT</div><div class="col-constraint con-chk">POST/PATCH/DEL</div></div>
+        <div class="col-row"><div class="col-icon">📦</div><div class="col-name">payload</div><div class="col-type">JSONB</div><div class="col-constraint con-null">NOT NULL</div></div>
+        <div class="col-row"><div class="col-icon">🕐</div><div class="col-name">created_at_utc</div><div class="col-type">TIMESTAMPTZ</div><div class="col-constraint con-idx">IDX (LWW)</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">status</div><div class="col-type">sync_status</div><div class="col-constraint con-idx">IDX</div></div>
+        <div class="col-row"><div class="col-icon"></div><div class="col-name">retry_count</div><div class="col-type">SMALLINT</div><div class="col-constraint con-null">DEFAULT 0</div></div>
+      </div>
+      <div class="table-footer">REQ-SYS-01. created_at_utc is the device timestamp used for Last-Write-Wins conflict resolution. Abandoned after 5 retries.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─── RLS ─── -->
+<section id="rls">
+  <div class="section-header">
+    <span class="section-number">05</span>
+    <span class="section-title">ROW-LEVEL SECURITY POLICIES</span>
+    <div class="section-line"></div>
+  </div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:4px;overflow:hidden;">
+    <table class="rls-table">
+      <thead>
+        <tr>
+          <th>TABLE</th>
+          <th>OPERATION</th>
+          <th>ALLOWED ROLES</th>
+          <th>CONDITION</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>users</td><td>SELECT</td><td><span class="role-badge role-resident">resident</span></td><td>id = auth.uid() only</td></tr>
+        <tr><td>users</td><td>SELECT</td><td><span class="role-badge role-staff">staff</span><span class="role-badge role-doctor">doctor</span></td><td>Residents at own BHC only</td></tr>
+        <tr><td>users</td><td>SELECT / UPDATE</td><td><span class="role-badge role-admin">admin</span></td><td>All rows</td></tr>
+        <tr><td>users</td><td>DELETE</td><td>—</td><td>Not allowed — use is_active = FALSE</td></tr>
+        <tr><td>queue_tickets</td><td>INSERT / SELECT</td><td><span class="role-badge role-resident">resident</span></td><td>Own tickets only</td></tr>
+        <tr><td>queue_tickets</td><td>SELECT</td><td><span class="role-badge role-staff">staff</span><span class="role-badge role-doctor">doctor</span></td><td>All tickets at own BHC</td></tr>
+        <tr><td>queue_tickets</td><td>UPDATE</td><td><span class="role-badge role-staff">staff</span></td><td>Status field only at own BHC</td></tr>
+        <tr><td>consultations</td><td>SELECT</td><td><span class="role-badge role-resident">resident</span></td><td>Own records (patient_id = uid)</td></tr>
+        <tr><td>consultations</td><td>INSERT / UPDATE</td><td><span class="role-badge role-doctor">doctor</span></td><td>doctor_id = uid</td></tr>
+        <tr><td>consultations</td><td>SELECT</td><td><span class="role-badge role-doctor">doctor</span></td><td>All at own BHC</td></tr>
+        <tr><td>medicines</td><td>SELECT</td><td><span class="role-badge role-resident">resident</span><span class="role-badge role-staff">staff</span><span class="role-badge role-doctor">doctor</span></td><td>Own BHC only</td></tr>
+        <tr><td>medicines</td><td>UPDATE</td><td><span class="role-badge role-staff">staff</span><span class="role-badge role-admin">admin</span></td><td>is_available toggle at own BHC</td></tr>
+        <tr><td>prescriptions</td><td>SELECT</td><td><span class="role-badge role-resident">resident</span></td><td>Own records with status = 'active'</td></tr>
+        <tr><td>prescriptions</td><td>INSERT / SELECT</td><td><span class="role-badge role-doctor">doctor</span></td><td>doctor_id = uid</td></tr>
+        <tr><td>audit_logs</td><td>SELECT</td><td><span class="role-badge role-admin">admin</span></td><td>All rows</td></tr>
+        <tr><td>audit_logs</td><td>INSERT</td><td>—</td><td>Via log_audit_event() SECURITY DEFINER only</td></tr>
+        <tr><td>audit_logs</td><td>UPDATE / DELETE</td><td>—</td><td>❌ Not permitted for any role (append-only)</td></tr>
+        <tr><td>duplicate_flags</td><td>ALL</td><td><span class="role-badge role-admin">admin</span></td><td>Admin only</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ─── FUNCTIONS ─── -->
+<section id="functions">
+  <div class="section-header">
+    <span class="section-number">06</span>
+    <span class="section-title">SECURITY DEFINER FUNCTIONS</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="fn-grid">
+
+    <div class="fn-card">
+      <div class="fn-header">
+        <div class="fn-icon" style="background:rgba(0,212,255,0.1);">🎟</div>
+        <div>
+          <div class="fn-name">assign_ticket_number()</div>
+          <div class="fn-trigger">Called by: sync-queue-token Edge Function</div>
+        </div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Thread-safe ticket number assignment for the Virtual Pila queue.</div>
+        <ul class="fn-steps">
+          <li>Computes advisory lock key: hashtext(bhc_id || service_type)</li>
+          <li>Acquires pg_advisory_lock — blocks concurrent calls for same queue</li>
+          <li>Calculates MAX(ticket_number)+1 for today (Asia/Manila timezone)</li>
+          <li>UPSERT on local_token — safe for retries</li>
+          <li>Releases lock, returns assigned number</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="fn-card">
+      <div class="fn-header">
+        <div class="fn-icon" style="background:rgba(0,255,157,0.1);">🔀</div>
+        <div>
+          <div class="fn-name">merge_patient_records()</div>
+          <div class="fn-trigger">Called by: merge-patient-records Edge Function (Admin only)</div>
+        </div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Atomically consolidates duplicate patient records with full audit trail.</div>
+        <ul class="fn-steps">
+          <li>Snapshots discard record to JSONB before any changes</li>
+          <li>Re-parents all FKs: queue_tickets, consultations, prescriptions, immunizations, dependents</li>
+          <li>Soft-deletes the duplicate (is_active = FALSE)</li>
+          <li>Resolves the duplicate_flags entry</li>
+          <li>Writes audit_log with before/after snapshots</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="fn-card">
+      <div class="fn-header">
+        <div class="fn-icon" style="background:rgba(255,107,107,0.1);">📝</div>
+        <div>
+          <div class="fn-name">log_audit_event()</div>
+          <div class="fn-trigger">Called by: all destructive Edge Functions</div>
+        </div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">SECURITY DEFINER wrapper for appending to audit_logs. No role has direct INSERT permission on the table.</div>
+        <ul class="fn-steps">
+          <li>Accepts actor_id, action, target_table, target_id</li>
+          <li>Accepts optional before/after JSONB snapshots</li>
+          <li>Records ip_address and user_agent for forensics</li>
+          <li>Returns the new audit log UUID</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="fn-card">
+      <div class="fn-header">
+        <div class="fn-icon" style="background:rgba(255,209,102,0.1);">🔍</div>
+        <div>
+          <div class="fn-name">detect_duplicate_patients()</div>
+          <div class="fn-trigger">Called by: pg_cron every 6 hours</div>
+        </div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Fuzzy name-matching scan using pg_trgm to surface potential duplicates for Admin review.</div>
+        <ul class="fn-steps">
+          <li>Self-joins users WHERE role = 'resident' AND is_active = TRUE</li>
+          <li>Computes trigram similarity(full_name_a, full_name_b)</li>
+          <li>Inserts pairs with score > 0.75 into duplicate_flags</li>
+          <li>ON CONFLICT DO NOTHING — safe to re-run</li>
+          <li>Returns count of new flags inserted</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="fn-card">
+      <div class="fn-header">
+        <div class="fn-icon" style="background:rgba(179,136,255,0.1);">⏰</div>
+        <div>
+          <div class="fn-name">expire_prescriptions()</div>
+          <div class="fn-trigger">Called by: pg_cron daily at 16:00 UTC (midnight Manila)</div>
+        </div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Auto-transitions overdue active prescriptions to 'expired' status.</div>
+        <ul class="fn-steps">
+          <li>UPDATE prescriptions SET status = 'expired'</li>
+          <li>WHERE status = 'active' AND expires_at &lt; NOW()</li>
+          <li>Returns count of updated rows</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="fn-card">
+      <div class="fn-header">
+        <div class="fn-icon" style="background:rgba(0,212,255,0.1);">📱</div>
+        <div>
+          <div class="fn-name">resolve_qr_prescription()</div>
+          <div class="fn-trigger">Called by: pharmacy QR scan endpoint</div>
+        </div>
+      </div>
+      <div class="fn-body">
+        <div class="fn-desc">Looks up a full prescription by its opaque QR token without exposing internal UUIDs to the scanning device.</div>
+        <ul class="fn-steps">
+          <li>Accepts p_qr_token UUID (the value encoded in the QR code)</li>
+          <li>JOINs prescriptions → users (patient, doctor) → prescription_items → medicines</li>
+          <li>Returns patient name, doctor name, status, expiry, and items as JSONB</li>
+          <li>Patient UUID never leaves the database</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ─── INDEXES ─── -->
+<section id="indexes">
+  <div class="section-header">
+    <span class="section-number">07</span>
+    <span class="section-title">INDEX STRATEGY</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="idx-grid">
+    <div class="idx-card"><span class="idx-type-badge idx-gin">GIN</span><div class="idx-info"><div class="idx-name">idx_users_name_trgm</div><div class="idx-on">users.full_name — fuzzy patient lookup & duplicate detection</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-gin">GIN</span><div class="idx-info"><div class="idx-name">idx_medicines_name_trgm</div><div class="idx-on">medicines.generic_name — doctor prescription search</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_users_phone</div><div class="idx-on">users.phone_number WHERE is_active — SMS lookup, account linking</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_tickets_bhc_status</div><div class="idx-on">queue_tickets (bhc_id, status) — staff dashboard query</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_tickets_service</div><div class="idx-on">queue_tickets (bhc_id, service_type, status) — per-service queue view</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_tickets_local_token</div><div class="idx-on">queue_tickets.local_token — offline sync UPSERT dedup</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_consult_patient</div><div class="idx-on">consultations (patient_id, created_at DESC) — patient history</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_rx_qr_token</div><div class="idx-on">prescriptions.qr_token — fast pharmacy QR scan lookup</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_rx_expires</div><div class="idx-on">prescriptions.expires_at WHERE status='active' — daily expiry job</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_medicines_bhc_avail</div><div class="idx-on">medicines (bhc_id, is_available) — E-Botika resident view</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_audit_actor</div><div class="idx-on">audit_logs (actor_id, created_at DESC) — admin forensic search</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_sync_pending</div><div class="idx-on">sync_queue_items.created_at_utc WHERE status='pending' — LWW resolution</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_dupflag_unresolved</div><div class="idx-on">duplicate_flags WHERE resolved=FALSE — admin dashboard count</div></div></div>
+    <div class="idx-card"><span class="idx-type-badge idx-btree">B-TREE</span><div class="idx-info"><div class="idx-name">idx_immuno_due</div><div class="idx-on">immunization_records.next_due_at — upcoming vaccination reminders</div></div></div>
+  </div>
+</section>
+
+<!-- ─── CRON ─── -->
+<section id="cron">
+  <div class="section-header">
+    <span class="section-number">08</span>
+    <span class="section-title">SCHEDULED JOBS (pg_cron)</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="cron-grid">
+    <div class="cron-card">
+      <div class="cron-icon">🔍</div>
+      <div>
+        <div class="cron-name">detect-duplicate-patients</div>
+        <div class="cron-schedule">0 */6 * * *  — Every 6 hours</div>
+        <div class="cron-desc">Runs detect_duplicate_patients(). Self-joins all active residents using pg_trgm similarity on full_name. Flags pairs with score > 0.75 into duplicate_flags for Admin review. ON CONFLICT DO NOTHING makes it safe to run frequently.</div>
+      </div>
+    </div>
+    <div class="cron-card">
+      <div class="cron-icon">⏰</div>
+      <div>
+        <div class="cron-name">expire-prescriptions</div>
+        <div class="cron-schedule">0 16 * * *  — Daily at 16:00 UTC (midnight Manila, UTC+8)</div>
+        <div class="cron-desc">Runs expire_prescriptions(). Updates all active prescriptions past their expires_at timestamp to status = 'expired'. Ensures residents' QR codes stop working at the correct local time.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── REQ TRACEABILITY ─── -->
+<section id="req">
+  <div class="section-header">
+    <span class="section-number">09</span>
+    <span class="section-title">SRS REQUIREMENT TRACEABILITY</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="req-grid">
+    <div class="req-row"><span class="req-id">REQ-RES-01</span><span class="req-desc">Offline auth → WatermelonDB + bcrypt pin_hash in users table</span></div>
+    <div class="req-row"><span class="req-id">REQ-RES-02</span><span class="req-desc">Virtual queuing → queue_tickets table + assign_ticket_number()</span></div>
+    <div class="req-row"><span class="req-id">REQ-RES-03</span><span class="req-desc">E-Botika viewer → medicines.is_available + Realtime channel</span></div>
+    <div class="req-row"><span class="req-id">REQ-RES-04</span><span class="req-desc">Dependent management → dependents table + immunization_records</span></div>
+    <div class="req-row"><span class="req-id">REQ-RES-05</span><span class="req-desc">Account linking → account_links table + invite_token UUID</span></div>
+    <div class="req-row"><span class="req-id">REQ-RES-06</span><span class="req-desc">Digital Reseta → prescriptions.qr_token + resolve_qr_prescription()</span></div>
+    <div class="req-row"><span class="req-id">REQ-DOC-01</span><span class="req-desc">Patient lookup → GIN trgm index on users.full_name</span></div>
+    <div class="req-row"><span class="req-id">REQ-DOC-02</span><span class="req-desc">SOAP notes → consultations table with structured vitals columns</span></div>
+    <div class="req-row"><span class="req-id">REQ-DOC-03</span><span class="req-desc">E-Prescribing → issue-prescription Edge Fn + stock check</span></div>
+    <div class="req-row"><span class="req-id">REQ-STF-01</span><span class="req-desc">Queue control → queue_tickets UPDATE RLS + call-next-ticket Edge Fn</span></div>
+    <div class="req-row"><span class="req-id">REQ-STF-02</span><span class="req-desc">Inventory toggles → PATCH /medicines + Realtime broadcast</span></div>
+    <div class="req-row"><span class="req-id">REQ-ADM-01</span><span class="req-desc">Entity resolution → duplicate_flags + merge_patient_records()</span></div>
+    <div class="req-row"><span class="req-id">REQ-ADM-02</span><span class="req-desc">Audit trail → audit_logs append-only + log_audit_event()</span></div>
+    <div class="req-row"><span class="req-id">REQ-SYS-01</span><span class="req-desc">Optimistic sync → sync_queue_items + local_token UPSERT</span></div>
+    <div class="req-row"><span class="req-id">REQ-SYS-02</span><span class="req-desc">SMS fallback → 5s WebSocket timeout → Semaphore HTTP POST</span></div>
+    <div class="req-row"><span class="req-id">RA 10173</span><span class="req-desc">Data Privacy Act → TLS 1.3 + AES-256 at rest + SQLCipher + RLS</span></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+  // Active nav pill highlight on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const pills = document.querySelectorAll('.nav-pill');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        pills.forEach(p => p.classList.remove('active'));
+        const active = document.querySelector(`.nav-pill[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

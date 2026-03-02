@@ -62,7 +62,7 @@ export default function App() {
           {renderDashboard()}
         </SafeAreaView>
       )}
-      <StatusBar style={userRole === 'staff' ? 'light' : 'dark'} onPress={() => { }} />
+      <StatusBar style={userRole === 'staff' ? 'light' : 'dark'} />
     </SafeAreaProvider>
   );
 }

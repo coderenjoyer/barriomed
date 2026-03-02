@@ -15,21 +15,21 @@ import { VaccineTimeline, VaccineRecord } from '../components/patient/vaccinetim
 const familyMembers: FamilyMember[] = [
     {
         id: '1',
-        name: 'Sarah Anderson',
+        name: 'Patient Mother',
         relation: 'Me',
         pendingCount: 0,
         stats: { age: '28', weight: '55kg', height: '165cm', lastVisit: 'Dec 15' }
     },
     {
         id: '2',
-        name: 'Mark Anderson',
+        name: 'Patient Father',
         relation: 'Spouse',
         pendingCount: 0,
         stats: { age: '30', weight: '75kg', height: '178cm', lastVisit: 'Nov 20' }
     },
     {
         id: '3',
-        name: 'Leo Anderson',
+        name: 'Patient Son',
         relation: 'Son',
         pendingCount: 1,
         avatar: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
@@ -91,7 +91,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
         <View style={styles.header}>
             <View style={styles.headerLeft}>
                 <Text style={styles.greetingText}>Good Morning,</Text>
-                <Text style={styles.nameText}>Sarah Anderson</Text>
+                <Text style={styles.nameText}>Patient Name</Text>
             </View>
 
             <View style={styles.headerRight}>

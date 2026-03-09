@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { PhoneInput } from '../components/patient/logininput';
@@ -169,7 +169,7 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
                                 </View>
 
                                 <View style={styles.rolesContainer}>
-                                    {roles.map((role) => {
+                                    {roles.filter(r => Platform.OS === 'web' || r.id !== 'admin').map((role) => {
                                         const isSelected = selectedRole === role.id;
                                         return (
                                             <TouchableOpacity

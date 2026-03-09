@@ -1,6 +1,7 @@
 import './global.css';
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, Button } from 'react-native';
+import { StyleSheet, View, Text, Button, TouchableOpacity } from 'react-native';
+import { FontAwesome5, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -16,12 +17,7 @@ const DoctorDashboard = ({ onLogout }: { onLogout: () => void }) => (
   </View>
 );
 
-const AdminDashboard = ({ onLogout }: { onLogout: () => void }) => (
-  <View style={styles.center}>
-    <Text>Admin Dashboard (Placeholder)</Text>
-    <Button title="Logout" onPress={onLogout} />
-  </View>
-);
+import { AdminDashboard } from './web/admin/admindashboard';
 
 export default function App() {
   const [userRole, setUserRole] = useState<UserRole | null>(null);
@@ -47,7 +43,7 @@ export default function App() {
       case 'doctor':
         return <DoctorDashboard onLogout={handleLogout} />;
       case 'admin':
-        return <AdminDashboard onLogout={handleLogout} />;
+        return <AdminDashboard onLogout={handleLogout} onSetUserRole={setUserRole} />;
       default:
         return <LoginPage onLoginComplete={handleLogin} />;
     }

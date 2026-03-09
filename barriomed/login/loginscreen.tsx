@@ -294,6 +294,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 12,
         elevation: 5,
+        width: '100%',
+        maxWidth: 480,
+        alignSelf: 'center',
     },
     scrollContent: {
         flexGrow: 1,

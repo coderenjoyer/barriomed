@@ -158,12 +158,13 @@ const styles = StyleSheet.create({
     },
     otpContainer: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         marginBottom: 32,
         gap: 8,
+        alignSelf: 'center',
     },
     otpInput: {
-        flex: 1,
+        width: 48,
         height: 56,
         textAlign: 'center',
         fontSize: 24,

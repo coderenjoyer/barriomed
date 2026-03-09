@@ -427,14 +427,6 @@ supabase db push
 supabase db reset
 ```
 
----
-
-## ✦ License
-
-MIT License — see [LICENSE](./LICENSE) for details.
-
----
-
 ## ✦ Acknowledgments
 
 Built for the barangay health workers, nurses, and doctors who show up every day with limited resources and unlimited dedication.

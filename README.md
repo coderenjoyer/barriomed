@@ -10,7 +10,6 @@ BARRIOMED
 
 ---
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-22c55e.svg?style=flat-square)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-1.0.0-0ea5e9.svg?style=flat-square)]()
 [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Web-6366f1.svg?style=flat-square)]()
 [![Backend](https://img.shields.io/badge/Backend-Supabase%20%2F%20PostgreSQL-3ecf8e.svg?style=flat-square)](https://supabase.com)

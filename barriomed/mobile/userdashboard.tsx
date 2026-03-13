@@ -8,18 +8,18 @@ import { QueueTicket } from '../components/patient/queueticket';
 import { BotikaPage } from '../components/patient/botikamanagement';
 import { ImmunizationTimeline } from '../components/patient/immunotimeline';
 import { FloatingActionButton } from '../components/patient/floatingactionbutton';
-import { FamilyMemberCard, FamilyMember } from '../components/patient/yellowcard';
+import { FamilyMemberCard, FamilyMember, YellowCardDetails } from '../components/patient/yellowcard';
 import { VaccineTimeline, VaccineRecord } from '../components/patient/vaccinetimeline';
 import { PatientChatMain } from '../components/patient/patientchat/patientchatmain';
 
-// Mock Data for Family Members
-const familyMembers: FamilyMember[] = [
+// Initial Mock Data for Family Members
+const initialFamilyMembers: FamilyMember[] = [
     {
         id: '1',
         name: 'Patient Mother',
         relation: 'Me',
         pendingCount: 0,
-        stats: { age: '28', weight: '55kg', height: '165cm', lastVisit: 'Dec 15' }
+        stats: { age: '28', weight: '55kg', height: '165cm', lastVisit: 'Dec 15', bloodType: 'O+' }
     },
     {
         id: '2',
@@ -57,6 +57,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showServiceSelector, setShowServiceSelector] = useState(false);
     const [selectedMemberId, setSelectedMemberId] = useState('1');
+    const [membersList, setMembersList] = useState<FamilyMember[]>(initialFamilyMembers);
 
     // Mock data for the ticket
     const [ticketData, setTicketData] = useState({
@@ -243,7 +244,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                             </Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -8 }}>
                                 <View style={{ flexDirection: 'row', paddingHorizontal: 8 }}>
-                                    {familyMembers.map((member, index) => (
+                                    {membersList.map((member, index) => (
                                         <FamilyMemberCard
                                             key={member.id}
                                             member={member}
@@ -256,39 +257,18 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                             </ScrollView>
                         </View>
 
-                        <View style={{ paddingHorizontal: 24 }}>
-                            <View style={styles.queueCard}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-                                    <View>
-                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1F2937' }}>
-                                            {familyMembers.find(m => m.id === selectedMemberId)?.name}
-                                        </Text>
-                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                                            {familyMembers.find(m => m.id === selectedMemberId)?.relation} • {familyMembers.find(m => m.id === selectedMemberId)?.stats.age} yrs old
-                                        </Text>
-                                    </View>
-                                    <TouchableOpacity style={{ padding: 8, backgroundColor: '#F3F4F6', borderRadius: 8 }}>
-                                        <Feather name="edit-2" size={16} color="#4B5563" />
-                                    </TouchableOpacity>
-                                </View>
+                        <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
+                            {membersList.find(m => m.id === selectedMemberId) && (
+                                <YellowCardDetails
+                                    member={membersList.find(m => m.id === selectedMemberId)!}
+                                    isOwnRecord={membersList.find(m => m.id === selectedMemberId)?.relation === 'Me'}
+                                    onUpdate={(updatedMember) => {
+                                        setMembersList(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
+                                    }}
+                                />
+                            )}
 
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', marginBottom: 16 }}>
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>Weight</Text>
-                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>{familyMembers.find(m => m.id === selectedMemberId)?.stats.weight}</Text>
-                                    </View>
-                                    <View style={{ width: 1, backgroundColor: '#F3F4F6' }} />
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>Height</Text>
-                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>{familyMembers.find(m => m.id === selectedMemberId)?.stats.height}</Text>
-                                    </View>
-                                    <View style={{ width: 1, backgroundColor: '#F3F4F6' }} />
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>Last Visit</Text>
-                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>{familyMembers.find(m => m.id === selectedMemberId)?.stats.lastVisit}</Text>
-                                    </View>
-                                </View>
-
+                            <View style={[styles.queueCard, { marginTop: 0 }]}>
                                 <VaccineTimeline records={vaccineRecords} />
                             </View>
                         </View>

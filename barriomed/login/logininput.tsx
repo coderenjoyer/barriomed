@@ -2,21 +2,30 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 
-interface PhoneInputProps {
-    onSubmit: (phone: string) => void;
+export interface LoginFormData {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    pin: string;
+}
+
+interface LoginFormProps {
+    onSubmit: (data: LoginFormData) => void;
     isLoading?: boolean;
 }
 
-export function PhoneInput({ onSubmit, isLoading = false }: PhoneInputProps) {
-    const [value, setValue] = useState('');
+export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [pin, setPin] = useState('');
     const [error, setError] = useState('');
 
     const formatPhoneNumber = (input: string) => {
-        // Remove non-digits
         const cleaned = input.replace(/\D/g, '');
-        // Limit to 10 digits (since +63 is fixed)
         const truncated = cleaned.slice(0, 10);
-        // Format as 9XX XXX XXXX
         if (truncated.length > 6) {
             return `${truncated.slice(0, 3)} ${truncated.slice(3, 6)} ${truncated.slice(6)}`;
         } else if (truncated.length > 3) {
@@ -25,46 +34,116 @@ export function PhoneInput({ onSubmit, isLoading = false }: PhoneInputProps) {
         return truncated;
     };
 
-    const handleChange = (text: string) => {
+    const handlePhoneChange = (text: string) => {
         const formatted = formatPhoneNumber(text);
-        setValue(formatted);
+        setPhone(formatted);
         if (error) setError('');
     };
 
     const handleSubmit = () => {
-        const rawValue = value.replace(/\s/g, '');
-        if (rawValue.length < 10) {
+        const rawPhone = phone.replace(/\s/g, '');
+        if (!firstName.trim()) {
+            setError('Please enter your first name');
+            return;
+        }
+        if (!lastName.trim()) {
+            setError('Please enter your last name');
+            return;
+        }
+        if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            setError('Please enter a valid email address');
+            return;
+        }
+        if (rawPhone.length < 10) {
             setError('Please enter a valid mobile number');
             return;
         }
-        onSubmit(rawValue);
+        if (pin.length < 4) {
+            setError('Please enter a valid PIN');
+            return;
+        }
+        onSubmit({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), phone: rawPhone, pin });
     };
+
+    const isFormValid = firstName.trim().length > 0 && lastName.trim().length > 0 && email.trim().length > 0 && phone.replace(/\s/g, '').length === 10 && pin.length >= 4;
 
     return (
         <View style={styles.container}>
             <View style={styles.header}>
                 <View style={styles.iconContainer}>
-                    <Feather name="phone" size={32} color="#0D9488" />
+                    <Feather name="log-in" size={32} color="#0D9488" />
                 </View>
-                <Text style={styles.title}>Welcome to B-Health</Text>
-                <Text style={styles.subtitle}>Enter your mobile number for quick access</Text>
+                <Text style={styles.title}>Welcome</Text>
+                <Text style={styles.subtitle}>Enter your details to log in</Text>
             </View>
 
             <View style={styles.inputSection}>
-                <View style={styles.inputContainer}>
-                    <View style={styles.prefixContainer}>
-                        <Text style={styles.prefixText}>+63</Text>
-                    </View>
+                <View style={styles.inputWrapper}>
+                    <Text style={styles.label}>First Name</Text>
                     <TextInput
-                        keyboardType="phone-pad"
-                        value={value}
-                        onChangeText={handleChange}
-                        placeholder="912 345 6789"
+                        value={firstName}
+                        onChangeText={(t) => { setFirstName(t); setError(''); }}
+                        placeholder="Juan"
                         placeholderTextColor="#D1D5DB"
-                        style={styles.input}
-                        autoFocus
+                        style={styles.standardInput}
                     />
                 </View>
+
+                <View style={styles.inputWrapper}>
+                    <Text style={styles.label}>Last Name</Text>
+                    <TextInput
+                        value={lastName}
+                        onChangeText={(t) => { setLastName(t); setError(''); }}
+                        placeholder="Dela Cruz"
+                        placeholderTextColor="#D1D5DB"
+                        style={styles.standardInput}
+                    />
+                </View>
+
+                <View style={styles.inputWrapper}>
+                    <Text style={styles.label}>Email Address</Text>
+                    <TextInput
+                        keyboardType="email-address"
+                        autoCapitalize="none"
+                        value={email}
+                        onChangeText={(t) => { setEmail(t); setError(''); }}
+                        placeholder="juandelacruz@example.com"
+                        placeholderTextColor="#D1D5DB"
+                        style={styles.standardInput}
+                    />
+                </View>
+
+                <View style={styles.inputWrapper}>
+                    <Text style={styles.label}>Mobile Number</Text>
+                    <View style={styles.phoneInputContainer}>
+                        <View style={styles.prefixContainer}>
+                            <Text style={styles.prefixText}>+63</Text>
+                        </View>
+                        <TextInput
+                            keyboardType="phone-pad"
+                            value={phone}
+                            onChangeText={handlePhoneChange}
+                            placeholder="912 345 6789"
+                            placeholderTextColor="#D1D5DB"
+                            style={styles.input}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.inputWrapper}>
+                    <Text style={styles.label}>PIN</Text>
+                    <TextInput
+                        value={pin}
+                        onChangeText={(t) => { setPin(t); setError(''); }}
+                        placeholder="••••"
+                        placeholderTextColor="#D1D5DB"
+                        secureTextEntry
+                        keyboardType="numeric"
+                        maxLength={4}
+                        style={styles.standardInput}
+                    />
+                </View>
+
                 {error ? (
                     <Text style={styles.errorText}>{error}</Text>
                 ) : null}
@@ -72,17 +151,17 @@ export function PhoneInput({ onSubmit, isLoading = false }: PhoneInputProps) {
 
             <TouchableOpacity
                 onPress={handleSubmit}
-                disabled={isLoading || value.length < 3}
+                disabled={isLoading || !isFormValid}
                 style={[
                     styles.submitButton,
-                    (isLoading || value.length < 3) ? styles.submitButtonDisabled : null,
+                    (isLoading || !isFormValid) ? styles.submitButtonDisabled : null,
                 ]}
             >
                 {isLoading ? (
                     <ActivityIndicator color="#FFFFFF" />
                 ) : (
                     <View style={styles.buttonContent}>
-                        <Text style={styles.submitButtonText}>Send OTP Code</Text>
+                        <Text style={styles.submitButtonText}>Log In</Text>
                         <Feather name="arrow-right" size={20} color="#FFFFFF" />
                     </View>
                 )}
@@ -126,7 +205,26 @@ const styles = StyleSheet.create({
     inputSection: {
         marginBottom: 24,
     },
-    inputContainer: {
+    inputWrapper: {
+        marginBottom: 16,
+    },
+    label: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#374151',
+        marginBottom: 8,
+    },
+    standardInput: {
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderRadius: 16,
+        height: 56,
+        paddingHorizontal: 16,
+        fontSize: 16,
+        color: '#111827',
+    },
+    phoneInputContainer: {
         flexDirection: 'row',
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
@@ -150,8 +248,7 @@ const styles = StyleSheet.create({
     input: {
         flex: 1,
         paddingHorizontal: 16,
-        fontSize: 18,
-        fontWeight: '500',
+        fontSize: 16,
         color: '#111827',
     },
     errorText: {

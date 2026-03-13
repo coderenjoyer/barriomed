@@ -2,34 +2,35 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
-import { BottomNavigation } from '../components/bottomnav';
-import { ServiceSelector, ServiceType } from '../components/selectservice';
-import { QueueTicket } from '../components/queueticket';
-import { BotikaPage } from '../components/botikamanagement';
-import { ImmunizationTimeline } from '../components/immunotimeline';
-import { FloatingActionButton } from '../components/floatingactionbutton';
-import { FamilyMemberCard, FamilyMember } from '../components/yellowcard';
-import { VaccineTimeline, VaccineRecord } from '../components/vaccinetimeline';
+import { BottomNavigation } from '../components/patient/bottomnav';
+import { ServiceSelector, ServiceType } from '../components/patient/selectservice';
+import { QueueTicket } from '../components/patient/queueticket';
+import { BotikaPage } from '../components/patient/botikamanagement';
+import { ImmunizationTimeline } from '../components/patient/immunotimeline';
+import { FloatingActionButton } from '../components/patient/floatingactionbutton';
+import { FamilyMemberCard, FamilyMember, YellowCardDetails } from '../components/patient/yellowcard';
+import { VaccineTimeline, VaccineRecord } from '../components/patient/vaccinetimeline';
+import { PatientChatMain } from '../components/patient/patientchat/patientchatmain';
 
-// Mock Data for Family Members
-const familyMembers: FamilyMember[] = [
+// Initial Mock Data for Family Members
+const initialFamilyMembers: FamilyMember[] = [
     {
         id: '1',
-        name: 'Sarah Anderson',
+        name: 'Patient Mother',
         relation: 'Me',
         pendingCount: 0,
-        stats: { age: '28', weight: '55kg', height: '165cm', lastVisit: 'Dec 15' }
+        stats: { age: '28', weight: '55kg', height: '165cm', lastVisit: 'Dec 15', bloodType: 'O+' }
     },
     {
         id: '2',
-        name: 'Mark Anderson',
+        name: 'Patient Father',
         relation: 'Spouse',
         pendingCount: 0,
         stats: { age: '30', weight: '75kg', height: '178cm', lastVisit: 'Nov 20' }
     },
     {
         id: '3',
-        name: 'Leo Anderson',
+        name: 'Patient Son',
         relation: 'Son',
         pendingCount: 1,
         avatar: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
@@ -56,6 +57,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [showServiceSelector, setShowServiceSelector] = useState(false);
     const [selectedMemberId, setSelectedMemberId] = useState('1');
+    const [membersList, setMembersList] = useState<FamilyMember[]>(initialFamilyMembers);
 
     // Mock data for the ticket
     const [ticketData, setTicketData] = useState({
@@ -91,7 +93,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
         <View style={styles.header}>
             <View style={styles.headerLeft}>
                 <Text style={styles.greetingText}>Good Morning,</Text>
-                <Text style={styles.nameText}>Sarah Anderson</Text>
+                <Text style={styles.nameText}>Patient Name</Text>
             </View>
 
             <View style={styles.headerRight}>
@@ -242,7 +244,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                             </Text>
                             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -8 }}>
                                 <View style={{ flexDirection: 'row', paddingHorizontal: 8 }}>
-                                    {familyMembers.map((member, index) => (
+                                    {membersList.map((member, index) => (
                                         <FamilyMemberCard
                                             key={member.id}
                                             member={member}
@@ -255,39 +257,18 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                             </ScrollView>
                         </View>
 
-                        <View style={{ paddingHorizontal: 24 }}>
-                            <View style={styles.queueCard}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-                                    <View>
-                                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#1F2937' }}>
-                                            {familyMembers.find(m => m.id === selectedMemberId)?.name}
-                                        </Text>
-                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>
-                                            {familyMembers.find(m => m.id === selectedMemberId)?.relation} • {familyMembers.find(m => m.id === selectedMemberId)?.stats.age} yrs old
-                                        </Text>
-                                    </View>
-                                    <TouchableOpacity style={{ padding: 8, backgroundColor: '#F3F4F6', borderRadius: 8 }}>
-                                        <Feather name="edit-2" size={16} color="#4B5563" />
-                                    </TouchableOpacity>
-                                </View>
+                        <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
+                            {membersList.find(m => m.id === selectedMemberId) && (
+                                <YellowCardDetails
+                                    member={membersList.find(m => m.id === selectedMemberId)!}
+                                    isOwnRecord={membersList.find(m => m.id === selectedMemberId)?.relation === 'Me'}
+                                    onUpdate={(updatedMember) => {
+                                        setMembersList(prev => prev.map(m => m.id === updatedMember.id ? updatedMember : m));
+                                    }}
+                                />
+                            )}
 
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderTopWidth: 1, borderTopColor: '#F3F4F6', borderBottomWidth: 1, borderBottomColor: '#F3F4F6', marginBottom: 16 }}>
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>Weight</Text>
-                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>{familyMembers.find(m => m.id === selectedMemberId)?.stats.weight}</Text>
-                                    </View>
-                                    <View style={{ width: 1, backgroundColor: '#F3F4F6' }} />
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>Height</Text>
-                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>{familyMembers.find(m => m.id === selectedMemberId)?.stats.height}</Text>
-                                    </View>
-                                    <View style={{ width: 1, backgroundColor: '#F3F4F6' }} />
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 12, color: '#6B7280' }}>Last Visit</Text>
-                                        <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>{familyMembers.find(m => m.id === selectedMemberId)?.stats.lastVisit}</Text>
-                                    </View>
-                                </View>
-
+                            <View style={[styles.queueCard, { marginTop: 0 }]}>
                                 <VaccineTimeline records={vaccineRecords} />
                             </View>
                         </View>
@@ -295,10 +276,8 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 );
             case 'chat':
                 return (
-                    <View style={styles.emptyStateContainer}>
-                        <Feather name="message-circle" size={48} color="#D1D5DB" />
-                        <Text style={styles.emptyStateTitle}>Chat Support</Text>
-                        <Text style={styles.emptyStateText}>Coming Soon</Text>
+                    <View style={{ flex: 1 }}>
+                        <PatientChatMain />
                     </View>
                 );
             default:

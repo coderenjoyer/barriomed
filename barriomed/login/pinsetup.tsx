@@ -4,25 +4,32 @@ import { Feather } from '@expo/vector-icons';
 
 interface PINSetupProps {
     onComplete: (pin: string) => void;
+    isLogin?: boolean;
 }
 
-export function PINSetup({ onComplete }: PINSetupProps) {
+export function PINSetup({ onComplete, isLogin = false }: PINSetupProps) {
     const [pin, setPin] = useState('');
     const [confirmPin, setConfirmPin] = useState('');
-    const [step, setStep] = useState<'create' | 'confirm'>('create');
+    const [step, setStep] = useState<'create' | 'confirm' | 'login'>(isLogin ? 'login' : 'create');
     const [error, setError] = useState('');
     const [isSuccess, setIsSuccess] = useState(false);
 
     const handleNumberClick = (num: number) => {
         if (error) setError('');
 
-        const currentVal = step === 'create' ? pin : confirmPin;
+        const currentVal = (step === 'create' || step === 'login') ? pin : confirmPin;
         if (currentVal.length < 4) {
             const newVal = currentVal + num;
             if (step === 'create') {
                 setPin(newVal);
                 if (newVal.length === 4) {
                     setTimeout(() => setStep('confirm'), 300);
+                }
+            } else if (step === 'login') {
+                setPin(newVal);
+                if (newVal.length === 4) {
+                     // In a real app we would validate the PIN against stored hash/secure storage. For now, simulate success:
+                     setTimeout(() => onComplete(newVal), 300);
                 }
             } else {
                 setConfirmPin(newVal);
@@ -35,7 +42,7 @@ export function PINSetup({ onComplete }: PINSetupProps) {
 
     const handleDelete = () => {
         if (error) setError('');
-        if (step === 'create') {
+        if (step === 'create' || step === 'login') {
             setPin((prev) => prev.slice(0, -1));
         } else {
             setConfirmPin((prev) => prev.slice(0, -1));
@@ -55,9 +62,9 @@ export function PINSetup({ onComplete }: PINSetupProps) {
         }
     };
 
-    const activePin = step === 'create' ? pin : confirmPin;
+    const activePin = (step === 'create' || step === 'login') ? pin : confirmPin;
 
-    if (isSuccess) {
+    if (isSuccess && step !== 'login') {
         return (
             <View style={styles.successContainer}>
                 <View style={styles.successIcon}>
@@ -79,12 +86,14 @@ export function PINSetup({ onComplete }: PINSetupProps) {
                     <Feather name="lock" size={24} color="#0D9488" />
                 </View>
                 <Text style={styles.title}>
-                    {step === 'create' ? 'Set Offline PIN' : 'Confirm PIN'}
+                    {step === 'create' && 'Set Offline PIN'}
+                    {step === 'confirm' && 'Confirm PIN'}
+                    {step === 'login' && 'Enter PIN'}
                 </Text>
                 <Text style={styles.subtitle}>
-                    {step === 'create'
-                        ? 'Create a 4-digit PIN to access your records without internet connection.'
-                        : 'Re-enter your PIN to confirm.'}
+                    {step === 'create' && 'Create a 4-digit PIN to access your records without internet connection.'}
+                    {step === 'confirm' && 'Re-enter your PIN to confirm.'}
+                    {step === 'login' && 'Enter your 4-digit PIN to access your account.'}
                 </Text>
             </View>
 

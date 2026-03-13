@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { PhoneInput } from '../components/logininput';
-import { OTPInput } from '../components/otpinput';
-import { PINSetup } from '../components/pinsetup';
+import { LoginForm, LoginFormData } from './logininput';
+import { OTPInput } from './otpinput';
+import { PINSetup } from './pinsetup';
 import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 
 export type UserRole = 'patient' | 'staff' | 'admin' | 'doctor';
@@ -69,10 +69,11 @@ const roles = [
 ];
 
 export function LoginPage({ onLoginComplete }: LoginPageProps) {
-    const [step, setStep] = useState<'role' | 'phone' | 'otp' | 'pin'>('role');
+    const [step, setStep] = useState<'role' | 'login' | 'otp' | 'pinLogin'>('role');
     const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [existingUser, setExistingUser] = useState<boolean>(false);
 
     useEffect(() => {
         const checkSavedRole = async () => {
@@ -80,7 +81,8 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
                 const savedRole = await AsyncStorage.getItem('userRole');
                 if (savedRole && roles.some(r => r.id === savedRole)) {
                     setSelectedRole(savedRole as UserRole);
-                    setStep('phone');
+                    setExistingUser(true);
+                    setStep('pinLogin');
                 }
             } catch (error) {
                 console.error('Error loading saved role:', error);
@@ -95,43 +97,47 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
 
     const handleRoleContinue = () => {
         if (selectedRole) {
-            setStep('phone');
+            setStep('login');
         }
     };
 
-    const handlePhoneSubmit = (phone: string) => {
+    const handleLoginSubmit = async (data: LoginFormData) => {
         setIsLoading(true);
-        setPhoneNumber(phone);
-        // Simulate API call
-        setTimeout(() => {
+        // Simulate API login and check if verification is needed
+        setTimeout(async () => {
             setIsLoading(false);
+            // Simulating requiring verification
+            setPhoneNumber(data.phone);
             setStep('otp');
         }, 1500);
     };
 
-    const handleOTPVerify = (otp: string) => {
+    const handleOTPVerify = async (otp: string) => {
         setIsLoading(true);
-        // Simulate API verification
-        setTimeout(() => {
+        // Simulate API OTP verification & final authentication using PIN
+        setTimeout(async () => {
             setIsLoading(false);
-            setStep('pin');
+            if (onLoginComplete && selectedRole) {
+                try {
+                    await AsyncStorage.setItem('userRole', selectedRole);
+                } catch (error) {
+                    console.error('Error saving role:', error);
+                }
+                onLoginComplete(selectedRole);
+            }
         }, 1500);
     };
 
-    const handlePINComplete = async (pin: string) => {
-        // Complete login and redirect based on role
+    const handlePINLoginComplete = async (pin: string) => {
+        // Here you would validate the PIN and role
         if (onLoginComplete && selectedRole) {
-            try {
-                await AsyncStorage.setItem('userRole', selectedRole);
-            } catch (error) {
-                console.error('Error saving role:', error);
-            }
             onLoginComplete(selectedRole);
         }
     };
 
     const getStepIndex = () => {
-        const steps = ['role', 'phone', 'otp', 'pin'];
+        if (existingUser) return 0; // Don't show steps for PIN Login
+        const steps = ['role', 'login', 'otp'];
         return steps.indexOf(step);
     };
 
@@ -139,21 +145,23 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
         <SafeAreaView style={styles.safeArea}>
             <View style={styles.container}>
                 {/* Step Indicator */}
-                <View style={styles.stepIndicator}>
-                    {['role', 'phone', 'otp', 'pin'].map((s, i) => {
-                        const currentIndex = getStepIndex();
-                        const isActive = i <= currentIndex;
-                        return (
-                            <View
-                                key={s}
-                                style={[
-                                    styles.stepDot,
-                                    isActive ? styles.stepDotActive : styles.stepDotInactive,
-                                ]}
-                            />
-                        );
-                    })}
-                </View>
+                {!existingUser && (
+                    <View style={styles.stepIndicator}>
+                        {['role', 'login', 'otp'].map((s, i) => {
+                            const currentIndex = getStepIndex();
+                            const isActive = i <= currentIndex;
+                            return (
+                                <View
+                                    key={s}
+                                    style={[
+                                        styles.stepDot,
+                                        isActive ? styles.stepDotActive : styles.stepDotInactive,
+                                    ]}
+                                />
+                            );
+                        })}
+                    </View>
+                )}
 
                 {/* Main Card */}
                 <View style={styles.card}>
@@ -169,7 +177,7 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
                                 </View>
 
                                 <View style={styles.rolesContainer}>
-                                    {roles.map((role) => {
+                                    {roles.filter(r => Platform.OS === 'web' || r.id !== 'admin').map((role) => {
                                         const isSelected = selectedRole === role.id;
                                         return (
                                             <TouchableOpacity
@@ -221,7 +229,23 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
                             </View>
                         )}
 
-                        {step === 'phone' && (
+                        {step === 'pinLogin' && (
+                            <View style={styles.stepContainer}>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setExistingUser(false);
+                                        setStep('role');
+                                    }}
+                                    style={styles.backButton}
+                                >
+                                    <Feather name="log-out" size={18} color="#EF4444" />
+                                    <Text style={[styles.backButtonText, { color: '#EF4444' }]}>Sign in as different user</Text>
+                                </TouchableOpacity>
+                                <PINSetup isLogin={true} onComplete={handlePINLoginComplete} />
+                            </View>
+                        )}
+
+                        {step === 'login' && (
                             <View style={styles.stepContainer}>
                                 <TouchableOpacity
                                     onPress={() => setStep('role')}
@@ -230,20 +254,18 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
                                     <Feather name="arrow-left" size={18} color="#0D9488" />
                                     <Text style={styles.backButtonText}>Switch Role</Text>
                                 </TouchableOpacity>
-                                <PhoneInput onSubmit={handlePhoneSubmit} isLoading={isLoading} />
+                                <LoginForm onSubmit={handleLoginSubmit} isLoading={isLoading} />
                             </View>
                         )}
 
                         {step === 'otp' && (
                             <OTPInput
                                 phoneNumber={phoneNumber}
-                                onBack={() => setStep('phone')}
+                                onBack={() => setStep('login')}
                                 onVerify={handleOTPVerify}
                                 isLoading={isLoading}
                             />
                         )}
-
-                        {step === 'pin' && <PINSetup onComplete={handlePINComplete} />}
                     </ScrollView>
                 </View>
 
@@ -294,6 +316,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
         shadowRadius: 12,
         elevation: 5,
+        width: '100%',
+        maxWidth: 480,
+        alignSelf: 'center',
     },
     scrollContent: {
         flexGrow: 1,

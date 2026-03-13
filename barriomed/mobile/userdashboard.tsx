@@ -10,6 +10,7 @@ import { ImmunizationTimeline } from '../components/patient/immunotimeline';
 import { FloatingActionButton } from '../components/patient/floatingactionbutton';
 import { FamilyMemberCard, FamilyMember } from '../components/patient/yellowcard';
 import { VaccineTimeline, VaccineRecord } from '../components/patient/vaccinetimeline';
+import { PatientChatMain } from '../components/patient/patientchat/patientchatmain';
 
 // Mock Data for Family Members
 const familyMembers: FamilyMember[] = [
@@ -295,10 +296,8 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 );
             case 'chat':
                 return (
-                    <View style={styles.emptyStateContainer}>
-                        <Feather name="message-circle" size={48} color="#D1D5DB" />
-                        <Text style={styles.emptyStateTitle}>Chat Support</Text>
-                        <Text style={styles.emptyStateText}>Coming Soon</Text>
+                    <View style={{ flex: 1 }}>
+                        <PatientChatMain />
                     </View>
                 );
             default:

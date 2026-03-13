@@ -1,7 +1,6 @@
 import './global.css';
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, Button, TouchableOpacity } from 'react-native';
-import { FontAwesome5, Feather } from '@expo/vector-icons';
+import { StyleSheet, View, Text, Button } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
@@ -9,13 +8,7 @@ import { LoginPage, UserRole } from './login/loginscreen';
 import { UserDashboard } from './mobile/userdashboard';
 import { StaffNavigator } from './components/staff/StaffNavigator';
 
-// Placeholder Components for other roles
-const DoctorDashboard = ({ onLogout }: { onLogout: () => void }) => (
-  <View style={styles.center}>
-    <Text>Doctor Dashboard (Placeholder)</Text>
-    <Button title="Logout" onPress={onLogout} />
-  </View>
-);
+import { DoctorDashboard } from './mobile/doctordashboard';
 
 import { AdminDashboard } from './web/admin/admindashboard';
 

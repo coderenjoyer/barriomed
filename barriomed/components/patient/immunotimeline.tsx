@@ -10,75 +10,63 @@ interface Immunization {
     completed: boolean;
 }
 
-const records: Immunization[] = [
-    {
-        id: '1',
-        vaccine: 'Influenza (Flu)',
-        date: 'Oct 15, 2023',
-        location: 'City Health Clinic',
-        completed: true,
-    },
-    {
-        id: '2',
-        vaccine: 'COVID-19 Booster',
-        date: 'Sep 02, 2023',
-        location: 'Central Hospital',
-        completed: true,
-    },
-    {
-        id: '3',
-        vaccine: 'Tetanus (Tdap)',
-        date: 'Mar 10, 2023',
-        location: 'Family Practice',
-        completed: true,
-    },
-];
+interface ImmunizationTimelineProps {
+    records?: Immunization[];
+}
 
-export function ImmunizationTimeline() {
+export function ImmunizationTimeline({ records = [] }: ImmunizationTimelineProps) {
     return (
         <View style={styles.container}>
             <Text style={styles.headerTitle}>Immunization History</Text>
 
-            <View style={styles.timelineContainer}>
-                {/* Vertical Line */}
-                <View style={styles.verticalLine} />
-
-                <View style={styles.listContainer}>
-                    {records.map((record) => (
-                        <View key={record.id} style={styles.timelineItem}>
-                            {/* Timeline Node */}
-                            <View style={styles.nodeContainer}>
-                                <View style={styles.node}>
-                                    {record.completed && (
-                                        <Feather name="check" size={12} color="#0D9488" />
-                                    )}
-                                </View>
-                            </View>
-
-                            {/* Content Card */}
-                            <View style={styles.card}>
-                                <View style={styles.cardHeader}>
-                                    <Text style={styles.vaccineName}>{record.vaccine}</Text>
-                                    <View style={styles.dateBadge}>
-                                        <Text style={styles.dateText}>{record.date}</Text>
-                                    </View>
-                                </View>
-
-                                <View style={styles.cardDetails}>
-                                    <View style={styles.detailRow}>
-                                        <FontAwesome5 name="syringe" size={12} color="#0D9488" style={styles.icon} />
-                                        <Text style={styles.detailLabel}>Vaccine</Text>
-                                    </View>
-                                    <View style={styles.detailRow}>
-                                        <Feather name="map-pin" size={12} color="#0D9488" style={styles.icon} />
-                                        <Text style={styles.detailText}>{record.location}</Text>
-                                    </View>
-                                </View>
-                            </View>
-                        </View>
-                    ))}
+            {records.length === 0 ? (
+                <View style={styles.emptyState}>
+                    <FontAwesome5 name="syringe" size={32} color="#D1D5DB" />
+                    <Text style={styles.emptyStateTitle}>No Records Yet</Text>
+                    <Text style={styles.emptyStateText}>Immunization records will appear here once available.</Text>
                 </View>
-            </View>
+            ) : (
+                <View style={styles.timelineContainer}>
+                    {/* Vertical Line */}
+                    <View style={styles.verticalLine} />
+
+                    <View style={styles.listContainer}>
+                        {records.map((record) => (
+                            <View key={record.id} style={styles.timelineItem}>
+                                {/* Timeline Node */}
+                                <View style={styles.nodeContainer}>
+                                    <View style={styles.node}>
+                                        {record.completed && (
+                                            <Feather name="check" size={12} color="#0D9488" />
+                                        )}
+                                    </View>
+                                </View>
+
+                                {/* Content Card */}
+                                <View style={styles.card}>
+                                    <View style={styles.cardHeader}>
+                                        <Text style={styles.vaccineName}>{record.vaccine}</Text>
+                                        <View style={styles.dateBadge}>
+                                            <Text style={styles.dateText}>{record.date}</Text>
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.cardDetails}>
+                                        <View style={styles.detailRow}>
+                                            <FontAwesome5 name="syringe" size={12} color="#0D9488" style={styles.icon} />
+                                            <Text style={styles.detailLabel}>Vaccine</Text>
+                                        </View>
+                                        <View style={styles.detailRow}>
+                                            <Feather name="map-pin" size={12} color="#0D9488" style={styles.icon} />
+                                            <Text style={styles.detailText}>{record.location}</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                </View>
+            )}
         </View>
     );
 }
@@ -90,9 +78,26 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: '#1F2937', // charcoal-800
+        color: '#1F2937',
         marginBottom: 16,
         paddingHorizontal: 4,
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 40,
+        paddingHorizontal: 24,
+    },
+    emptyStateTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#9CA3AF',
+        marginTop: 12,
+        marginBottom: 4,
+    },
+    emptyStateText: {
+        fontSize: 13,
+        color: '#D1D5DB',
+        textAlign: 'center',
     },
     timelineContainer: {
         position: 'relative',

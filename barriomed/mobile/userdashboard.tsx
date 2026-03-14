@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import { useAuth } from '../lib/AuthContext';
+import { fetchMedicalInfo, type PatientMedicalInfo } from '../lib/patientMedicalService';
+import { PatientSettingsForm } from '../components/patient/PatientSettingsForm';
 import { BottomNavigation } from '../components/patient/bottomnav';
 import { ServiceSelector, ServiceType } from '../components/patient/selectservice';
 import { QueueTicket } from '../components/patient/queueticket';
@@ -12,52 +15,56 @@ import { FamilyMemberCard, FamilyMember, YellowCardDetails } from '../components
 import { VaccineTimeline, VaccineRecord } from '../components/patient/vaccinetimeline';
 import { PatientChatMain } from '../components/patient/patientchat/patientchatmain';
 
-// Initial Mock Data for Family Members
-const initialFamilyMembers: FamilyMember[] = [
-    {
-        id: '1',
-        name: 'Patient Mother',
-        relation: 'Me',
-        pendingCount: 0,
-        stats: { age: '28', weight: '55kg', height: '165cm', lastVisit: 'Dec 15', bloodType: 'O+' }
-    },
-    {
-        id: '2',
-        name: 'Patient Father',
-        relation: 'Spouse',
-        pendingCount: 0,
-        stats: { age: '30', weight: '75kg', height: '178cm', lastVisit: 'Nov 20' }
-    },
-    {
-        id: '3',
-        name: 'Patient Son',
-        relation: 'Son',
-        pendingCount: 1,
-        avatar: 'https://images.unsplash.com/photo-1519689680058-324335c77eba?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80',
-        stats: { age: '2', weight: '12kg', height: '85cm', lastVisit: 'Jan 10' }
-    },
-];
+// Family members – empty until real data is bound
+const initialFamilyMembers: FamilyMember[] = [];
 
-// Mock Data for Vaccines
-const vaccineRecords: VaccineRecord[] = [
-    { id: '1', vaccine: 'Hepatitis B (Dose 1)', date: '2022-01-15', status: 'completed', location: 'City Health Center' },
-    { id: '2', vaccine: 'DTaP (Dose 1)', date: '2022-03-01', status: 'completed', location: 'City Health Center' },
-    { id: '3', vaccine: 'Influenza', date: '2023-11-10', status: 'completed', location: 'Barrio Med Clinic' },
-    { id: '4', vaccine: 'COVID-19 Booster', date: '2024-03-15', status: 'pending' },
-];
+// Vaccine records – empty until real data is bound
+const vaccineRecords: VaccineRecord[] = [];
+
+// Dynamic greeting based on time of day
+function getGreeting(): string {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+}
 
 interface UserDashboardProps {
     onLogout?: () => void;
 }
 
 export function UserDashboard({ onLogout }: UserDashboardProps) {
+    const { userProfile, session } = useAuth();
+    const userId = session?.user?.id ?? '';
+
     const [activeTab, setActiveTab] = useState('home');
-    const [isQueueing, setIsQueueing] = useState(false); // Set to true to show queue status
+    const [isQueueing, setIsQueueing] = useState(false);
     const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showServiceSelector, setShowServiceSelector] = useState(false);
     const [selectedMemberId, setSelectedMemberId] = useState('1');
     const [membersList, setMembersList] = useState<FamilyMember[]>(initialFamilyMembers);
+
+    // Patient medical info state
+    const [medicalInfo, setMedicalInfo] = useState<PatientMedicalInfo | null>(null);
+    const [showSettingsForm, setShowSettingsForm] = useState(false);
+    const [settingsMode, setSettingsMode] = useState<'add' | 'edit'>('add');
+
+    // Fetch medical info on mount
+    useEffect(() => {
+        if (userId) {
+            fetchMedicalInfo(userId).then((data) => {
+                if (data) setMedicalInfo(data);
+            });
+        }
+    }, [userId]);
+
+    // Derive display name from authenticated user
+    const firstName = userProfile?.first_name ?? session?.user?.user_metadata?.first_name ?? '';
+    const lastName = userProfile?.last_name ?? session?.user?.user_metadata?.last_name ?? '';
+    const displayName = `${firstName} ${lastName}`.trim() || 'User';
+    const userInitial = (firstName?.[0] ?? '?').toUpperCase();
+    const profilePicUrl = medicalInfo?.profile_picture_url;
 
     // Mock data for the ticket
     const [ticketData, setTicketData] = useState({
@@ -92,8 +99,8 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
     const renderHeader = () => (
         <View style={styles.header}>
             <View style={styles.headerLeft}>
-                <Text style={styles.greetingText}>Good Morning,</Text>
-                <Text style={styles.nameText}>Patient Name</Text>
+                <Text style={styles.greetingText}>{getGreeting()},</Text>
+                <Text style={styles.nameText}>{displayName}</Text>
             </View>
 
             <View style={styles.headerRight}>
@@ -110,10 +117,16 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 </TouchableOpacity>
 
                 <View style={styles.avatarContainer}>
-                    <Image
-                        source={{ uri: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=crop&w=100&q=80" }}
-                        style={styles.avatar}
-                    />
+                    {profilePicUrl && profilePicUrl.trim() !== '' ? (
+                        <Image
+                            source={{ uri: profilePicUrl }}
+                            style={styles.avatar}
+                        />
+                    ) : (
+                        <View style={styles.avatarInitial}>
+                            <Text style={styles.avatarInitialText}>{userInitial}</Text>
+                        </View>
+                    )}
                 </View>
             </View>
         </View>
@@ -239,22 +252,77 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 return (
                     <ScrollView contentContainerStyle={styles.scrollContent}>
                         <View style={{ paddingHorizontal: 24, paddingTop: 24, paddingBottom: 16 }}>
-                            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1F2937', marginBottom: 16 }}>
-                                Family Records
-                            </Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -8 }}>
-                                <View style={{ flexDirection: 'row', paddingHorizontal: 8 }}>
-                                    {membersList.map((member, index) => (
-                                        <FamilyMemberCard
-                                            key={member.id}
-                                            member={member}
-                                            isSelected={selectedMemberId === member.id}
-                                            onClick={() => setSelectedMemberId(member.id)}
-                                            index={index}
-                                        />
-                                    ))}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                                <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#1F2937' }}>
+                                    Family Records
+                                </Text>
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        setSettingsMode(medicalInfo ? 'edit' : 'add');
+                                        setShowSettingsForm(true);
+                                    }}
+                                    style={styles.settingsButton}
+                                >
+                                    <Feather name="settings" size={18} color="#0D9488" />
+                                    <Text style={styles.settingsButtonText}>
+                                        {medicalInfo ? 'Edit Info' : 'Add Info'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Medical Info Summary Card */}
+                            {medicalInfo && (
+                                <View style={styles.medicalInfoCard}>
+                                    <View style={styles.medicalInfoRow}>
+                                        {medicalInfo.profile_picture_url && medicalInfo.profile_picture_url.trim() !== '' ? (
+                                            <Image
+                                                source={{ uri: medicalInfo.profile_picture_url }}
+                                                style={styles.medicalInfoAvatar}
+                                            />
+                                        ) : (
+                                            <View style={[styles.medicalInfoAvatar, styles.medicalInfoAvatarPlaceholder]}>
+                                                <Feather name="user" size={24} color="#9CA3AF" />
+                                            </View>
+                                        )}
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.medicalInfoName}>{displayName}</Text>
+                                            <Text style={styles.medicalInfoSub}>Blood Type: {medicalInfo.blood_type}</Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.medicalInfoStats}>
+                                        <View style={styles.medicalInfoStat}>
+                                            <Text style={styles.medicalInfoStatLabel}>Height</Text>
+                                            <Text style={styles.medicalInfoStatValue}>{medicalInfo.height} cm</Text>
+                                        </View>
+                                        <View style={styles.medicalInfoDivider} />
+                                        <View style={styles.medicalInfoStat}>
+                                            <Text style={styles.medicalInfoStatLabel}>Weight</Text>
+                                            <Text style={styles.medicalInfoStatValue}>{medicalInfo.weight} kg</Text>
+                                        </View>
+                                        <View style={styles.medicalInfoDivider} />
+                                        <View style={styles.medicalInfoStat}>
+                                            <Text style={styles.medicalInfoStatLabel}>BMI</Text>
+                                            <Text style={styles.medicalInfoStatValue}>{medicalInfo.bmi}</Text>
+                                        </View>
+                                    </View>
                                 </View>
-                            </ScrollView>
+                            )}
+
+                            {membersList.length > 0 ? (
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -8 }}>
+                                    <View style={{ flexDirection: 'row', paddingHorizontal: 8 }}>
+                                        {membersList.map((member, index) => (
+                                            <FamilyMemberCard
+                                                key={member.id}
+                                                member={member}
+                                                isSelected={selectedMemberId === member.id}
+                                                onClick={() => setSelectedMemberId(member.id)}
+                                                index={index}
+                                            />
+                                        ))}
+                                    </View>
+                                </ScrollView>
+                            ) : null}
                         </View>
 
                         <View style={{ paddingHorizontal: 24, paddingBottom: 24 }}>
@@ -298,6 +366,16 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
             {activeTab === 'home' && <FloatingActionButton onPress={handleGetQueueNumber} />}
 
             <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+
+            {/* Patient Settings Form Modal */}
+            <PatientSettingsForm
+                mode={settingsMode}
+                userId={userId}
+                existingRecord={medicalInfo}
+                visible={showSettingsForm}
+                onClose={() => setShowSettingsForm(false)}
+                onSaved={(record) => setMedicalInfo(record)}
+            />
 
             {/* Service Selector Modal */}
             {showServiceSelector && (
@@ -387,6 +465,19 @@ const styles = StyleSheet.create({
     avatar: {
         width: '100%',
         height: '100%',
+        backgroundColor: '#F3F4F6',
+    },
+    avatarInitial: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#0D9488',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarInitialText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
     },
     tabContent: {
         paddingHorizontal: 24,
@@ -606,5 +697,90 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         color: '#1F2937',
+    },
+    settingsButton: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        gap: 6,
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        backgroundColor: '#F0FDFA',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#CCFBF1',
+    },
+    settingsButtonText: {
+        fontSize: 13,
+        fontWeight: '600' as const,
+        color: '#0D9488',
+    },
+    medicalInfoCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    medicalInfoRow: {
+        flexDirection: 'row' as const,
+        alignItems: 'center' as const,
+        gap: 14,
+        marginBottom: 16,
+    },
+    medicalInfoAvatar: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        overflow: 'hidden' as const,
+        backgroundColor: '#F3F4F6',
+    },
+    medicalInfoAvatarPlaceholder: {
+        backgroundColor: '#F3F4F6',
+        alignItems: 'center' as const,
+        justifyContent: 'center' as const,
+    },
+    medicalInfoName: {
+        fontSize: 16,
+        fontWeight: '600' as const,
+        color: '#111827',
+        marginBottom: 2,
+    },
+    medicalInfoSub: {
+        fontSize: 13,
+        color: '#6B7280',
+    },
+    medicalInfoStats: {
+        flexDirection: 'row' as const,
+        justifyContent: 'space-around' as const,
+        paddingTop: 14,
+        borderTopWidth: 1,
+        borderTopColor: '#F3F4F6',
+    },
+    medicalInfoStat: {
+        alignItems: 'center' as const,
+        flex: 1,
+    },
+    medicalInfoStatLabel: {
+        fontSize: 11,
+        color: '#9CA3AF',
+        fontWeight: '500' as const,
+        marginBottom: 4,
+        textTransform: 'uppercase' as const,
+        letterSpacing: 0.5,
+    },
+    medicalInfoStatValue: {
+        fontSize: 15,
+        fontWeight: '700' as const,
+        color: '#111827',
+    },
+    medicalInfoDivider: {
+        width: 1,
+        backgroundColor: '#F3F4F6',
     },
 });

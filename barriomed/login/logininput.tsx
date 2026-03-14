@@ -25,7 +25,7 @@ export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
 
     const formatPhoneNumber = (input: string) => {
         const cleaned = input.replace(/\D/g, '');
-        const truncated = cleaned.slice(0, 10);
+        const truncated = cleaned.slice(0, 11);
         if (truncated.length > 6) {
             return `${truncated.slice(0, 3)} ${truncated.slice(3, 6)} ${truncated.slice(6)}`;
         } else if (truncated.length > 3) {
@@ -54,18 +54,18 @@ export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
             setError('Please enter a valid email address');
             return;
         }
-        if (rawPhone.length < 10) {
+        if (rawPhone.length < 11) {
             setError('Please enter a valid mobile number');
             return;
         }
-        if (pin.length < 4) {
+        if (pin.length < 6) {
             setError('Please enter a valid PIN');
             return;
         }
         onSubmit({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), phone: rawPhone, pin });
     };
 
-    const isFormValid = firstName.trim().length > 0 && lastName.trim().length > 0 && email.trim().length > 0 && phone.replace(/\s/g, '').length === 10 && pin.length >= 4;
+    const isFormValid = firstName.trim().length > 0 && lastName.trim().length > 0 && email.trim().length > 0 && phone.replace(/\s/g, '').length === 11 && pin.length >= 6;
 
     return (
         <View style={styles.container}>
@@ -135,11 +135,11 @@ export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
                     <TextInput
                         value={pin}
                         onChangeText={(t) => { setPin(t); setError(''); }}
-                        placeholder="••••"
+                        placeholder="••••••"
                         placeholderTextColor="#D1D5DB"
                         secureTextEntry
                         keyboardType="numeric"
-                        maxLength={4}
+                        maxLength={6}
                         style={styles.standardInput}
                     />
                 </View>

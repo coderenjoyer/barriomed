@@ -1,27 +1,40 @@
 import './global.css';
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, Button } from 'react-native';
+import { StyleSheet, View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { LoginPage, UserRole } from './login/loginscreen';
 import { UserDashboard } from './mobile/userdashboard';
 import { StaffNavigator } from './components/staff/StaffNavigator';
-
 import { DoctorDashboard } from './mobile/doctordashboard';
-
 import { AdminDashboard } from './web/admin/admindashboard';
+import { AuthProvider, useAuth } from './lib/AuthContext';
 
-export default function App() {
+// ---------------------------------------------------------------------------
+// Inner app – has access to useAuth()
+// ---------------------------------------------------------------------------
+function AppContent() {
+  const { signOut, isLoading: authLoading } = useAuth();
   const [userRole, setUserRole] = useState<UserRole | null>(null);
 
   const handleLogin = (role: UserRole) => {
     setUserRole(role);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await signOut();
     setUserRole(null);
   };
+
+  // Show a loading spinner while the auth session is being restored
+  if (authLoading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#0D9488" />
+      </View>
+    );
+  }
 
   const renderDashboard = () => {
     switch (userRole) {
@@ -56,6 +69,17 @@ export default function App() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Root – wraps everything with AuthProvider
+// ---------------------------------------------------------------------------
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -65,5 +89,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F0FDFA',
   },
 });

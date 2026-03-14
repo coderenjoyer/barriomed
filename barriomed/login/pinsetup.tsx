@@ -18,22 +18,22 @@ export function PINSetup({ onComplete, isLogin = false }: PINSetupProps) {
         if (error) setError('');
 
         const currentVal = (step === 'create' || step === 'login') ? pin : confirmPin;
-        if (currentVal.length < 4) {
+        if (currentVal.length < 6) {
             const newVal = currentVal + num;
             if (step === 'create') {
                 setPin(newVal);
-                if (newVal.length === 4) {
+                if (newVal.length === 6) {
                     setTimeout(() => setStep('confirm'), 300);
                 }
             } else if (step === 'login') {
                 setPin(newVal);
-                if (newVal.length === 4) {
-                     // In a real app we would validate the PIN against stored hash/secure storage. For now, simulate success:
-                     setTimeout(() => onComplete(newVal), 300);
+                if (newVal.length === 6) {
+                    // In a real app we would validate the PIN against stored hash/secure storage. For now, simulate success:
+                    setTimeout(() => onComplete(newVal), 300);
                 }
             } else {
                 setConfirmPin(newVal);
-                if (newVal.length === 4) {
+                if (newVal.length === 6) {
                     validatePin(newVal);
                 }
             }
@@ -91,15 +91,15 @@ export function PINSetup({ onComplete, isLogin = false }: PINSetupProps) {
                     {step === 'login' && 'Enter PIN'}
                 </Text>
                 <Text style={styles.subtitle}>
-                    {step === 'create' && 'Create a 4-digit PIN to access your records without internet connection.'}
+                    {step === 'create' && 'Create a 6-digit PIN to access your records without internet connection.'}
                     {step === 'confirm' && 'Re-enter your PIN to confirm.'}
-                    {step === 'login' && 'Enter your 4-digit PIN to access your account.'}
+                    {step === 'login' && 'Enter your 6-digit PIN to access your account.'}
                 </Text>
             </View>
 
             {/* PIN Dots */}
             <View style={styles.dotsContainer}>
-                {[0, 1, 2, 3].map((i) => (
+                {[0, 1, 2, 3, 4, 5].map((i) => (
                     <View
                         key={i}
                         style={[
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     dotsContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
-        gap: 24,
+        gap: 16,
         marginBottom: 32,
     },
     dot: {

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LoginForm, LoginFormData } from './logininput';
 import { OTPInput } from './otpinput';
 import { PINSetup } from './pinsetup';
 import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuth, type UiRole } from '../lib/AuthContext';
 
 export type UserRole = 'patient' | 'staff' | 'admin' | 'doctor';
 
@@ -69,30 +69,32 @@ const roles = [
 ];
 
 export function LoginPage({ onLoginComplete }: LoginPageProps) {
+    const { session, userProfile, uiRole, signIn, signupNewUser, signOut } = useAuth();
+
     const [step, setStep] = useState<'role' | 'login' | 'otp' | 'pinLogin'>('role');
     const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [existingUser, setExistingUser] = useState<boolean>(false);
+    const [authError, setAuthError] = useState('');
 
+    // Feature flag – set to true to re-enable phone verification (OTP step)
+    const PHONE_VERIFICATION_ENABLED = false;
+    // Store form data temporarily for the signup flow (role → form → OTP → done)
+    const [pendingFormData, setPendingFormData] = useState<LoginFormData | null>(null);
+
+    // If there's already an active Supabase session, jump to PIN login
     useEffect(() => {
-        const checkSavedRole = async () => {
-            try {
-                const savedRole = await AsyncStorage.getItem('userRole');
-                if (savedRole && roles.some(r => r.id === savedRole)) {
-                    setSelectedRole(savedRole as UserRole);
-                    setExistingUser(true);
-                    setStep('pinLogin');
-                }
-            } catch (error) {
-                console.error('Error loading saved role:', error);
-            }
-        };
-        checkSavedRole();
+        if (session && uiRole) {
+            setSelectedRole(uiRole as UserRole);
+            setExistingUser(true);
+            setStep('pinLogin');
+        }
     }, []);
 
     const handleRoleSelect = (role: UserRole) => {
         setSelectedRole(role);
+        setAuthError('');
     };
 
     const handleRoleContinue = () => {
@@ -101,43 +103,147 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
         }
     };
 
+    // -----------------------------------------------------------------------
+    // Signup / Login form submission
+    // -----------------------------------------------------------------------
     const handleLoginSubmit = async (data: LoginFormData) => {
+        if (!selectedRole) return;
         setIsLoading(true);
-        // Simulate API login and check if verification is needed
-        setTimeout(async () => {
+        setAuthError('');
+
+        try {
+            // 1. Try to sign in first (existing account)
+            const signInResult = await signIn({
+                email: data.email,
+                password: data.pin,
+            });
+
+            if (signInResult.success) {
+                // Session + profile are loaded by AuthContext automatically.
+                // We need to wait a tick for state to propagate, then notify parent.
+                // The uiRole will be set by the AuthContext via onAuthStateChange.
+                // For immediate routing, read from signInResult.
+                setTimeout(() => {
+                    if (onLoginComplete) {
+                        // The context will have set uiRole by now
+                        const role = uiRole ?? selectedRole;
+                        onLoginComplete(role as UserRole);
+                    }
+                    setIsLoading(false);
+                }, 300);
+                return;
+            }
+
+            // 2. If sign-in failed with "Invalid login credentials", try signup
+            if (signInResult.error && signInResult.error.includes('Invalid login credentials')) {
+                const signupResult = await signupNewUser({
+                    firstName: data.firstName,
+                    lastName: data.lastName,
+                    mobileNumber: data.phone,
+                    email: data.email,
+                    password: data.pin,
+                    role: selectedRole as UiRole,
+                });
+
+                if (signupResult.success) {
+                    if (PHONE_VERIFICATION_ENABLED) {
+                        setPendingFormData(data);
+                        setPhoneNumber(data.phone);
+                        setStep('otp');
+                        setIsLoading(false);
+                        return;
+                    }
+                    // Go straight to dashboard
+                    setTimeout(() => {
+                        if (onLoginComplete) {
+                            onLoginComplete(selectedRole as UserRole);
+                        }
+                        setIsLoading(false);
+                    }, 300);
+                    return;
+                } else {
+                    setAuthError(signupResult.error || 'Signup failed. Please try again.');
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
+            // Any other sign-in error
+            setAuthError(signInResult.error || 'Login failed. Please try again.');
+        } catch (err: any) {
+            console.error('Auth error:', err);
+            setAuthError('An unexpected error occurred. Please try again.');
+        } finally {
             setIsLoading(false);
-            // Simulating requiring verification
-            setPhoneNumber(data.phone);
-            setStep('otp');
-        }, 1500);
+        }
     };
 
+    // -----------------------------------------------------------------------
+    // OTP verification (kept for future re-activation)
+    // -----------------------------------------------------------------------
     const handleOTPVerify = async (otp: string) => {
         setIsLoading(true);
-        // Simulate API OTP verification & final authentication using PIN
+        setAuthError('');
+
         setTimeout(async () => {
             setIsLoading(false);
-            if (onLoginComplete && selectedRole) {
-                try {
-                    await AsyncStorage.setItem('userRole', selectedRole);
-                } catch (error) {
-                    console.error('Error saving role:', error);
-                }
-                onLoginComplete(selectedRole);
+            if (onLoginComplete && uiRole) {
+                onLoginComplete(uiRole as UserRole);
             }
         }, 1500);
     };
 
+    // -----------------------------------------------------------------------
+    // PIN login (returning user – re-authenticate with Supabase Auth)
+    // -----------------------------------------------------------------------
     const handlePINLoginComplete = async (pin: string) => {
-        // Here you would validate the PIN and role
-        if (onLoginComplete && selectedRole) {
-            onLoginComplete(selectedRole);
+        setIsLoading(true);
+        setAuthError('');
+
+        try {
+            // Use the email from the existing session's user
+            const email = session?.user?.email;
+            if (!email) {
+                setAuthError('No saved session found. Please sign in with your full credentials.');
+                setIsLoading(false);
+                return;
+            }
+
+            const result = await signIn({ email, password: pin });
+
+            if (result.success) {
+                setTimeout(() => {
+                    if (onLoginComplete) {
+                        const role = uiRole ?? selectedRole;
+                        onLoginComplete(role as UserRole);
+                    }
+                    setIsLoading(false);
+                }, 300);
+            } else {
+                setAuthError(result.error || 'Invalid PIN. Please try again.');
+                setIsLoading(false);
+            }
+        } catch (err: any) {
+            console.error('PIN login error:', err);
+            setAuthError('An unexpected error occurred. Please try again.');
+            setIsLoading(false);
         }
     };
 
+    // -----------------------------------------------------------------------
+    // Sign out / switch user
+    // -----------------------------------------------------------------------
+    const handleSignOut = async () => {
+        await signOut();
+        setExistingUser(false);
+        setSelectedRole(null);
+        setAuthError('');
+        setStep('role');
+    };
+
     const getStepIndex = () => {
-        if (existingUser) return 0; // Don't show steps for PIN Login
-        const steps = ['role', 'login', 'otp'];
+        if (existingUser) return 0;
+        const steps = PHONE_VERIFICATION_ENABLED ? ['role', 'login', 'otp'] : ['role', 'login'];
         return steps.indexOf(step);
     };
 
@@ -147,7 +253,7 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
                 {/* Step Indicator */}
                 {!existingUser && (
                     <View style={styles.stepIndicator}>
-                        {['role', 'login', 'otp'].map((s, i) => {
+                        {(PHONE_VERIFICATION_ENABLED ? ['role', 'login', 'otp'] : ['role', 'login']).map((s, i) => {
                             const currentIndex = getStepIndex();
                             const isActive = i <= currentIndex;
                             return (
@@ -216,6 +322,10 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
                                     })}
                                 </View>
 
+                                {authError ? (
+                                    <Text style={styles.authErrorText}>{authError}</Text>
+                                ) : null}
+
                                 <TouchableOpacity
                                     onPress={handleRoleContinue}
                                     disabled={!selectedRole}
@@ -231,40 +341,76 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
 
                         {step === 'pinLogin' && (
                             <View style={styles.stepContainer}>
-                                <TouchableOpacity
-                                    onPress={() => {
-                                        setExistingUser(false);
-                                        setStep('role');
-                                    }}
-                                    style={styles.backButton}
-                                >
-                                    <Feather name="log-out" size={18} color="#EF4444" />
-                                    <Text style={[styles.backButtonText, { color: '#EF4444' }]}>Sign in as different user</Text>
-                                </TouchableOpacity>
+                                {/* User info card */}
+                                {(userProfile || session?.user) && (
+                                    <View style={styles.userInfoCard}>
+                                        <View style={styles.userAvatar}>
+                                            <Text style={styles.userAvatarText}>
+                                                {(userProfile?.first_name?.[0] ?? session?.user?.email?.[0] ?? '?').toUpperCase()}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.userInfoTextContainer}>
+                                            {userProfile ? (
+                                                <Text style={styles.userInfoName}>
+                                                    {userProfile.first_name} {userProfile.last_name}
+                                                </Text>
+                                            ) : null}
+                                            <Text style={styles.userInfoEmail}>
+                                                {userProfile?.email ?? session?.user?.email ?? ''}
+                                            </Text>
+                                        </View>
+                                    </View>
+                                )}
+
+                                {authError ? (
+                                    <Text style={styles.authErrorText}>{authError}</Text>
+                                ) : null}
+
                                 <PINSetup isLogin={true} onComplete={handlePINLoginComplete} />
+
+                                {/* Switch account button */}
+                                <TouchableOpacity
+                                    onPress={handleSignOut}
+                                    style={styles.switchAccountButton}
+                                >
+                                    <Feather name="users" size={16} color="#6B7280" />
+                                    <Text style={styles.switchAccountText}>Use another account</Text>
+                                </TouchableOpacity>
                             </View>
                         )}
 
                         {step === 'login' && (
                             <View style={styles.stepContainer}>
                                 <TouchableOpacity
-                                    onPress={() => setStep('role')}
+                                    onPress={() => { setStep('role'); setAuthError(''); }}
                                     style={styles.backButton}
                                 >
                                     <Feather name="arrow-left" size={18} color="#0D9488" />
                                     <Text style={styles.backButtonText}>Switch Role</Text>
                                 </TouchableOpacity>
+
+                                {authError ? (
+                                    <Text style={styles.authErrorText}>{authError}</Text>
+                                ) : null}
+
                                 <LoginForm onSubmit={handleLoginSubmit} isLoading={isLoading} />
                             </View>
                         )}
 
-                        {step === 'otp' && (
-                            <OTPInput
-                                phoneNumber={phoneNumber}
-                                onBack={() => setStep('login')}
-                                onVerify={handleOTPVerify}
-                                isLoading={isLoading}
-                            />
+                        {/* Phone verification UI – disabled via PHONE_VERIFICATION_ENABLED flag */}
+                        {PHONE_VERIFICATION_ENABLED && step === 'otp' && (
+                            <View>
+                                {authError ? (
+                                    <Text style={styles.authErrorText}>{authError}</Text>
+                                ) : null}
+
+                                <OTPInput
+                                    phoneNumber={phoneNumber}
+                                    onBack={() => { setStep('login'); setAuthError(''); }}
+                                    onVerify={handleOTPVerify}
+                                    isLoading={isLoading}
+                                />
+                            </View>
                         )}
                     </ScrollView>
                 </View>
@@ -422,6 +568,20 @@ const styles = StyleSheet.create({
         color: '#0D9488',
         fontWeight: '600',
     },
+    authErrorText: {
+        color: '#EF4444',
+        fontSize: 14,
+        fontWeight: '500',
+        textAlign: 'center',
+        marginBottom: 16,
+        paddingHorizontal: 16,
+        backgroundColor: '#FEF2F2',
+        paddingVertical: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#FECACA',
+        overflow: 'hidden',
+    },
     helpButton: {
         marginTop: 32,
         alignItems: 'center',
@@ -429,6 +589,56 @@ const styles = StyleSheet.create({
     helpText: {
         fontSize: 14,
         color: '#0D9488',
+        fontWeight: '500',
+    },
+    userInfoCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F0FDFA',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#CCFBF1',
+        gap: 14,
+    },
+    userAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#0D9488',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    userAvatarText: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#FFFFFF',
+    },
+    userInfoTextContainer: {
+        flex: 1,
+    },
+    userInfoName: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#111827',
+        marginBottom: 2,
+    },
+    userInfoEmail: {
+        fontSize: 13,
+        color: '#6B7280',
+    },
+    switchAccountButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        paddingVertical: 14,
+        marginTop: 16,
+    },
+    switchAccountText: {
+        fontSize: 14,
+        color: '#6B7280',
         fontWeight: '500',
     },
 });

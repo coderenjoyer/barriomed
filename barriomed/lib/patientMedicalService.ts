@@ -103,7 +103,11 @@ async function uploadProfilePicture(userId: string, localUri: string): Promise<s
             .from('media')
             .getPublicUrl(filePath);
 
-        return urlData?.publicUrl ?? null;
+        if (urlData?.publicUrl) {
+            return `${urlData.publicUrl}?t=${new Date().getTime()}`;
+        }
+
+        return null;
     } catch (err) {
         console.error('Profile picture upload failed:', err);
         return null;

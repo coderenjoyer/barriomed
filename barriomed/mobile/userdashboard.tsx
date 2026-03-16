@@ -14,6 +14,8 @@ import { FloatingActionButton } from '../components/patient/floatingactionbutton
 import { FamilyMemberCard, FamilyMember, YellowCardDetails } from '../components/patient/yellowcard';
 import { VaccineTimeline, VaccineRecord } from '../components/patient/vaccinetimeline';
 import { PatientChatMain } from '../components/patient/patientchat/patientchatmain';
+import { queueService, QueueTicketData } from '../lib/queueService';
+import { Alert } from 'react-native';
 
 // Family members – empty until real data is bound
 const initialFamilyMembers: FamilyMember[] = [];
@@ -38,7 +40,6 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
     const userId = session?.user?.id ?? '';
 
     const [activeTab, setActiveTab] = useState('home');
-    const [isQueueing, setIsQueueing] = useState(false);
     const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showServiceSelector, setShowServiceSelector] = useState(false);
@@ -66,28 +67,99 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
     const userInitial = (firstName?.[0] ?? '?').toUpperCase();
     const profilePicUrl = medicalInfo?.profile_picture_url;
 
-    // Mock data for the ticket
-    const [ticketData, setTicketData] = useState({
-        queueNumber: 12,
-        nowServing: 11,
-        peopleAhead: 1,
-        estWaitTime: '15 mins',
-    });
+    const [queueTicket, setQueueTicket] = useState<QueueTicketData | null>(null);
+    const isQueueing = !!queueTicket;
+    
+    // Resume queue state (A-FR-04 Offline Display, A-FR-01 Silent Sync)
+    useEffect(() => {
+        let isMounted = true;
+        async function loadTicket() {
+            if (!userId) return;
+            
+            const localData = await queueService.getLocalTicket();
+            if (localData && isMounted) {
+                setQueueTicket(localData);
+                setSelectedService(localData.serviceType);
+            }
+            
+            const synced = await queueService.syncPendingTicket(userId);
+            if (synced && isMounted) {
+                setQueueTicket(synced);
+            }
+        }
+        loadTicket();
+        return () => { isMounted = false; };
+    }, [userId]);
 
-    const handleServiceConfirm = () => {
-        if (!selectedService) return;
+    // Supabase Real-time connection (A-FR-02, A-FR-03, A-FR-05)
+    useEffect(() => {
+        if (!userId || !queueTicket) return;
+        
+        const unsubscribe = queueService.subscribeToQueue(
+            queueTicket.serviceType,
+            userId,
+            (nowServing) => {
+                setQueueTicket(prev => {
+                    if (!prev) return prev;
+                    if (prev.nowServing >= nowServing) return prev; // Don't go backwards
+                    
+                    const peopleAhead = Math.max(0, prev.queueNumber - nowServing);
+                    
+                    if (peopleAhead === 5) {
+                        Alert.alert(
+                            "Please Proceed",
+                            "You are 5 numbers away from being served. Please proceed to the health center immediately."
+                        );
+                    }
+                    
+                    const updated: QueueTicketData = {
+                        ...prev,
+                        nowServing,
+                        peopleAhead,
+                        estWaitTime: `${peopleAhead * 5} mins`
+                    };
+                    
+                    queueService.updateLocalTicket(updated);
+                    return updated;
+                });
+            },
+            (status) => {
+                setQueueTicket(prev => {
+                    if (!prev) return prev;
+                    const updated: QueueTicketData = { ...prev, status };
+                    
+                    if (status === 'missed') {
+                        Alert.alert("Queue Missed", "Your number was called but you were not present. You may be re-inserted by staff.");
+                    } else if (status === 'completed') {
+                        queueService.clearLocalTicket();
+                        setSelectedService(null);
+                        return null;
+                    }
+                    
+                    queueService.updateLocalTicket(updated);
+                    return updated;
+                });
+            }
+        );
+        
+        return unsubscribe;
+    }, [userId, queueTicket?.serviceType]);
+
+    const handleServiceConfirm = async () => {
+        if (!selectedService || !userId) return;
         setIsLoading(true);
         setShowServiceSelector(false);
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false);
-            setIsQueueing(true);
-            setActiveTab('queue'); // Auto switch to queue tab
-        }, 1500);
+        
+        const ticket = await queueService.requestTicket(userId, selectedService);
+        
+        setIsLoading(false);
+        setQueueTicket(ticket);
+        setActiveTab('queue'); 
     };
 
-    const handleCancelQueue = () => {
-        setIsQueueing(false);
+    const handleCancelQueue = async () => {
+        await queueService.clearLocalTicket();
+        setQueueTicket(null);
         setSelectedService(null);
         setActiveTab('home');
     };
@@ -138,18 +210,18 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
             <View style={styles.queueCardContent}>
                 <View style={styles.queueNumberSection}>
                     <Text style={styles.queueNumberHash}>#</Text>
-                    <Text style={styles.queueNumber}>{ticketData.queueNumber}</Text>
-                    <Text style={styles.queueTotal}>/{ticketData.nowServing + ticketData.peopleAhead}</Text>
+                    <Text style={styles.queueNumber}>{queueTicket?.queueNumber}</Text>
+                    <Text style={styles.queueTotal}>/{(queueTicket?.nowServing || 0) + (queueTicket?.peopleAhead || 0)}</Text>
                 </View>
                 <View style={styles.queueCircle}>
                     <Text style={styles.queueCircleLabel}>Your Turn</Text>
-                    <Text style={styles.queueCircleValue}>In {ticketData.peopleAhead}</Text>
+                    <Text style={styles.queueCircleValue}>In {queueTicket?.peopleAhead}</Text>
                 </View>
             </View>
             <View style={styles.queueDetails}>
                 <View style={styles.queueDetailRow}>
                     <Feather name="clock" size={14} color="#0D9488" />
-                    <Text style={styles.queueDetailText}>Est. Wait: {ticketData.estWaitTime}</Text>
+                    <Text style={styles.queueDetailText}>Est. Wait: {queueTicket?.estWaitTime}</Text>
                 </View>
                 <View style={styles.queueDetailRow}>
                     <Feather name="map-pin" size={14} color="#0D9488" />
@@ -233,11 +305,11 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 return (
                     <View style={styles.tabContent}>
                         <QueueTicket
-                            serviceType={selectedService!}
-                            queueNumber={ticketData.queueNumber}
-                            nowServing={ticketData.nowServing}
-                            peopleAhead={ticketData.peopleAhead}
-                            estWaitTime={ticketData.estWaitTime}
+                            serviceType={queueTicket?.serviceType || selectedService || 'checkup'}
+                            queueNumber={queueTicket?.queueNumber || 0}
+                            nowServing={queueTicket?.nowServing || 0}
+                            peopleAhead={queueTicket?.peopleAhead || 0}
+                            estWaitTime={queueTicket?.estWaitTime || 'Unknown'}
                             onCancel={handleCancelQueue}
                         />
                     </View>

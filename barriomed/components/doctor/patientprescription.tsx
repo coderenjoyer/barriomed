@@ -13,8 +13,8 @@ import {
 } from 'react-native'
 import { Pill, Plus, Trash2, AlertCircle, Search, X } from 'lucide-react-native'
 
-if (Platform.OS === 'android') {
-    UIManager.setLayoutAnimationEnabledExperimental?.(true)
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
 interface Medicine {

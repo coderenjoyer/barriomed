@@ -12,8 +12,8 @@ import {
 } from 'react-native'
 import { Search, QrCode, User, ChevronRight } from 'lucide-react-native'
 
-if (Platform.OS === 'android') {
-    UIManager.setLayoutAnimationEnabledExperimental?.(true)
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
 export interface PatientSearchResult {

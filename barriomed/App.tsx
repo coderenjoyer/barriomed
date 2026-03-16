@@ -10,8 +10,15 @@ import { StaffNavigator } from './components/staff/StaffNavigator';
 import { DoctorDashboard } from './mobile/doctordashboard';
 import { AdminDashboard } from './web/admin/admindashboard';
 import { AuthProvider, useAuth } from './lib/AuthContext';
+import { LogBox, Platform, UIManager } from 'react-native';
+
+// Suppress New Architecture warnings for LayoutAnimation
+LogBox.ignoreLogs([
+  'setLayoutAnimationEnabledExperimental is currently a no-op',
+]);
 
 // ---------------------------------------------------------------------------
+
 // Inner app – has access to useAuth()
 // ---------------------------------------------------------------------------
 function AppContent() {

@@ -12,8 +12,8 @@ import {
 import { Calendar, User, ChevronDown, ChevronUp, FileText } from 'lucide-react-native'
 
 // Enable LayoutAnimation on Android
-if (Platform.OS === 'android') {
-    UIManager.setLayoutAnimationEnabledExperimental?.(true)
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
 export interface ConsultationRecord {

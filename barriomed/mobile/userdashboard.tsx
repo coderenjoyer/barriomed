@@ -103,12 +103,12 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                     if (!prev) return prev;
                     if (prev.nowServing >= nowServing) return prev; // Don't go backwards
                     
-                    const peopleAhead = Math.max(0, prev.queueNumber - nowServing);
+                    const peopleAhead = Math.max(0, prev.queueNumber - nowServing - 1); // -1 because nowServing is currently being served
                     
                     if (peopleAhead === 5) {
                         Alert.alert(
-                            "Please Proceed",
-                            "You are 5 numbers away from being served. Please proceed to the health center immediately."
+                            "Malapit na ang iyong turn",
+                            "Pumunta na sa health center. Ikaw ay 5 numbers away na lang."
                         );
                     }
                     
@@ -128,9 +128,9 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                     if (!prev) return prev;
                     const updated: QueueTicketData = { ...prev, status };
                     
-                    if (status === 'missed') {
+                    if (status === 'No Show') {
                         Alert.alert("Queue Missed", "Your number was called but you were not present. You may be re-inserted by staff.");
-                    } else if (status === 'completed') {
+                    } else if (status === 'Completed') {
                         queueService.clearLocalTicket();
                         setSelectedService(null);
                         return null;
@@ -144,6 +144,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
         
         return unsubscribe;
     }, [userId, queueTicket?.serviceType]);
+
 
     const handleServiceConfirm = async () => {
         if (!selectedService || !userId) return;

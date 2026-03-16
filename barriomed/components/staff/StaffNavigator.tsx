@@ -1,13 +1,20 @@
 import React from 'react';
-import { TouchableOpacity, Text } from 'react-native';
+import { TouchableOpacity, Text, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueueCommander } from './quequecaller';
 import { InventoryMaster } from './medicine_stocks/inventory';
 import { Feather } from '@expo/vector-icons';
+import { useAuth } from '../../lib/AuthContext';
 
 const Stack = createNativeStackNavigator();
 
 export function StaffNavigator({ onLogout }: { onLogout: () => void }) {
+    const { userProfile, session } = useAuth();
+
+    const firstName = userProfile?.first_name ?? session?.user?.user_metadata?.first_name ?? '';
+    const lastName  = userProfile?.last_name  ?? session?.user?.user_metadata?.last_name  ?? '';
+    const staffName = [firstName, lastName].filter(Boolean).join(' ') || 'Health Staff';
+
     return (
         <Stack.Navigator
             initialRouteName="Queue"
@@ -26,14 +33,20 @@ export function StaffNavigator({ onLogout }: { onLogout: () => void }) {
             <Stack.Screen
                 name="Queue"
                 component={QueueCommander}
-                options={{ title: 'BarrioMed Staff - Queue' }}
+                options={{
+                    headerTitle: () => (
+                        <View>
+                            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Queue Management</Text>
+                            <Text style={{ color: '#99F6E4', fontSize: 12 }}>{staffName}</Text>
+                        </View>
+                    ),
+                }}
             />
             <Stack.Screen
                 name="Inventory"
                 component={InventoryMaster}
                 options={{ title: 'Medicine Stocks' }}
             />
-            {/* Other staff screens can be added here, securely restricting access from other roles. */}
         </Stack.Navigator>
     );
 }

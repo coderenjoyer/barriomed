@@ -2,14 +2,17 @@ import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ServiceType } from '../components/patient/selectservice';
 
+export type QueueStatus = 'Pending' | 'Waiting' | 'Serving' | 'Completed' | 'No Show';
+
 export interface QueueTicketData {
     id?: string;
     queueNumber: number;
     serviceType: ServiceType;
-    status: 'pending' | 'confirmed' | 'serving' | 'completed' | 'missed';
+    status: QueueStatus | string;
     nowServing: number;
     peopleAhead: number;
     estWaitTime: string;
+    patientName?: string;
 }
 
 const STORAGE_KEY = '@barriomed_queue_ticket';
@@ -17,92 +20,62 @@ const STORAGE_KEY = '@barriomed_queue_ticket';
 export const queueService = {
     // A-FR-01: Get Ticket (Optimistic offline & online sync)
     async requestTicket(userId: string, serviceType: ServiceType): Promise<QueueTicketData> {
-        // Issuing a Pending Ticket immediately
-        const mockQueueNum = Math.floor(Math.random() * 20) + 30;
-        const pendingTicket: QueueTicketData = {
-            queueNumber: mockQueueNum,
+        // Fallback/Initial state
+        const initialTicket: QueueTicketData = {
+            queueNumber: 0,
             serviceType,
-            status: 'pending',
-            nowServing: 12, // example start
-            peopleAhead: mockQueueNum - 12,
-            estWaitTime: `${(mockQueueNum - 12) * 5} mins`
+            status: 'Pending',
+            nowServing: 0,
+            peopleAhead: 0,
+            estWaitTime: 'Calculating...'
         };
 
-        // Cache immediately for Offline Display (A-FR-04)
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(pendingTicket));
-
         try {
-            // Attempt to insert immediately (silent sync attempt)
-            const { data, error } = await supabase
-                .from('queue_tickets')
-                .insert([{
-                    user_id: userId,
-                    service_type: serviceType,
-                    status: 'confirmed',
-                    queue_number: mockQueueNum,
-                    now_serving: 12
-                }])
-                .select()
-                .single();
+            // Use RPC for atomic ticket generation
+            const { data, error } = await supabase.rpc('generate_ticket', {
+                p_user_id: userId,
+                p_service_type: serviceType
+            });
 
             if (!error && data) {
+                 // Get now serving from queue_state
+                 const { data: stateData } = await supabase
+                    .from('queue_state')
+                    .select('currently_serving')
+                    .eq('service_type', serviceType)
+                    .eq('date', new Date().toISOString().split('T')[0])
+                    .maybeSingle();
+
+                 const nowServing = stateData?.currently_serving || 0;
                  const confirmedTicket: QueueTicketData = {
                      id: data.id,
-                     queueNumber: data.queue_number || pendingTicket.queueNumber,
+                     queueNumber: data.queue_number,
                      serviceType: data.service_type as ServiceType,
                      status: data.status,
-                     nowServing: data.now_serving || pendingTicket.nowServing,
-                     peopleAhead: (data.queue_number || pendingTicket.queueNumber) - (data.now_serving || pendingTicket.nowServing),
-                     estWaitTime: `${((data.queue_number || pendingTicket.queueNumber) - (data.now_serving || pendingTicket.nowServing)) * 5} mins`
+                     nowServing: nowServing,
+                     peopleAhead: Math.max(0, data.queue_number - nowServing - 1),
+                     estWaitTime: `${Math.max(0, data.queue_number - nowServing - 1) * 5} mins`
                  };
                  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(confirmedTicket));
                  return confirmedTicket;
             } else {
-                console.warn('Could not confirm with server right away, keeping as pending:', error?.message);
+                console.warn('RPC Error:', error?.message);
             }
         } catch (e) {
-            console.warn('Network issue, keeping as pending');
+            console.warn('Network issue or RPC failure');
         }
 
-        return pendingTicket;
+        return initialTicket;
     },
 
-    // Silently sync pending ticket on connectivity restore
+    // Silently sync pending ticket on connectivity restore (A-BL-02)
     async syncPendingTicket(userId: string): Promise<QueueTicketData | null> {
        const cached = await AsyncStorage.getItem(STORAGE_KEY);
        if (!cached) return null;
        
        const ticket: QueueTicketData = JSON.parse(cached);
-       if (ticket.status === 'pending') {
-           try {
-               const { data, error } = await supabase
-                .from('queue_tickets')
-                .insert([{
-                    user_id: userId,
-                    service_type: ticket.serviceType,
-                    status: 'confirmed',
-                    queue_number: ticket.queueNumber,
-                    now_serving: ticket.nowServing
-                }])
-                .select()
-                .single();
-
-                if (!error && data) {
-                     const confirmedTicket: QueueTicketData = {
-                         id: data.id,
-                         queueNumber: data.queue_number || ticket.queueNumber,
-                         serviceType: data.service_type as ServiceType,
-                         status: data.status,
-                         nowServing: data.now_serving || ticket.nowServing,
-                         peopleAhead: (data.queue_number || ticket.queueNumber) - (data.now_serving || ticket.nowServing),
-                         estWaitTime: `${((data.queue_number || ticket.queueNumber) - (data.now_serving || ticket.nowServing)) * 5} mins`
-                     };
-                     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(confirmedTicket));
-                     return confirmedTicket;
-                }
-           } catch {
-               // Still pending
-           }
+       if (ticket.status === 'Pending') {
+           return this.requestTicket(userId, ticket.serviceType);
        }
        return ticket;
     },
@@ -120,44 +93,110 @@ export const queueService = {
         await AsyncStorage.removeItem(STORAGE_KEY);
     },
     
-    // A-FR-02: Real-Time Queue Monitoring with Supabase Realtime
+    // A-FR-02: Real-Time Queue Monitoring
     subscribeToQueue(
         serviceType: string, 
         userId: string,
         onNowServingUpdate: (nowServing: number) => void,
-        onStatusUpdate: (status: QueueTicketData['status']) => void
+        onStatusUpdate: (status: QueueStatus) => void
     ) {
-        // Listen to updates for the current service type
-        const generalSub = supabase
-          .channel(`public:queue_tickets:service_type=eq.${serviceType}`)
+        // Listen to queue_state changes (global serving updates)
+        const stateSub = supabase
+          .channel(`public:queue_state:service_type=eq.${serviceType}`)
           .on(
               'postgres_changes',
-              { event: 'UPDATE', schema: 'public', table: 'queue_tickets', filter: `service_type=eq.${serviceType}` },
+              { event: 'UPDATE', schema: 'public', table: 'queue_state', filter: `service_type=eq.${serviceType}` },
               (payload) => {
-                  if (payload.new.status === 'serving' && payload.new.queue_number) {
-                      onNowServingUpdate(payload.new.queue_number);
+                  if (payload.new.currently_serving !== undefined) {
+                      onNowServingUpdate(payload.new.currently_serving);
                   }
               }
           )
           .subscribe();
 
-        // Listen to changes to the user's specific ticket (A-FR-05 No-Show Re-insertion)
+        // Listen to changes to the user's specific ticket
         const userSub = supabase
-          .channel(`public:queue_tickets:user_id=eq.${userId}`)
+          .channel(`public:queue_transactions:user_id=eq.${userId}`)
           .on(
               'postgres_changes',
-              { event: 'UPDATE', schema: 'public', table: 'queue_tickets', filter: `user_id=eq.${userId}` },
+              { event: 'UPDATE', schema: 'public', table: 'queue_transactions', filter: `user_id=eq.${userId}` },
               (payload) => {
                   if (payload.new.status) {
-                      onStatusUpdate(payload.new.status as QueueTicketData['status']);
+                      onStatusUpdate(payload.new.status as QueueStatus);
                   }
               }
           )
           .subscribe();
 
         return () => {
-             supabase.removeChannel(generalSub);
+             supabase.removeChannel(stateSub);
              supabase.removeChannel(userSub);
+        };
+    },
+
+    // --- STAFF SIDE METHODS (Section 4) ---
+
+    async getQueueList(serviceType?: string) {
+        let query = supabase
+            .from('queue_transactions')
+            .select('*, users(first_name, last_name)')
+            .eq('date', new Date().toISOString().split('T')[0])
+            .neq('status', 'Completed')
+            .order('queue_number', { ascending: true });
+
+        if (serviceType) {
+            query = query.eq('service_type', serviceType);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        return data;
+    },
+
+    async callNext(serviceType: ServiceType) {
+        const { data, error } = await supabase.rpc('call_next', { p_service_type: serviceType });
+        if (error) throw error;
+        return data;
+    },
+
+    async completePatient(transactionId: string) {
+        const { error } = await supabase.rpc('complete_patient', { p_transaction_id: transactionId });
+        if (error) throw error;
+    },
+
+    async markNoShow(transactionId: string) {
+        const { error } = await supabase.rpc('mark_no_show', { p_transaction_id: transactionId });
+        if (error) throw error;
+    },
+
+    async reinsertPatient(transactionId: string) {
+        const { data, error } = await supabase.rpc('reinsert_patient', { p_transaction_id: transactionId });
+        if (error) throw error;
+        return data;
+    },
+
+    async registerWalkIn(patientName: string, serviceType: ServiceType) {
+        const { data, error } = await supabase.rpc('register_walk_in', {
+            p_patient_name: patientName,
+            p_service_type: serviceType
+        });
+        if (error) throw error;
+        return data;
+    },
+
+    subscribeToStaffQueue(onUpdate: () => void) {
+        const channel = supabase
+            .channel('staff_queue_channel')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'queue_transactions' },
+                () => onUpdate()
+            )
+            .subscribe();
+        
+        return () => {
+            supabase.removeChannel(channel);
         };
     }
 };
+

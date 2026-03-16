@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from './supabase';
 import type { Session } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -55,7 +56,7 @@ interface AuthContextValue {
     uiRole: UiRole | null;
     isLoading: boolean;
     signupNewUser: (params: SignupParams) => Promise<{ success: boolean; data?: unknown; error?: string }>;
-    signIn: (params: SignInParams) => Promise<{ success: boolean; data?: unknown; error?: string }>;
+    signIn: (params: SignInParams) => Promise<{ success: boolean; uiRole?: UiRole; data?: unknown; error?: string }>;
     signOut: () => Promise<{ success: boolean; error?: string }>;
     fetchUserProfile: (userId: string) => Promise<UserProfile | null>;
 }
@@ -174,6 +175,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return { success: false, error: error.message };
         }
 
+        // If Prevent Email Enumeration is ON, signing up an existing email returns a fake success with an empty identities array.
+        // This means the user literally just typed the wrong password during the prior login check.
+        if (data.user && data.user.identities && data.user.identities.length === 0) {
+            return { success: false, error: 'Invalid email or password.' };
+        }
+
+        // If Email Confirmation is REQUIRED, Supabase creates the user but returns no session.
+        if (data.user && !data.session) {
+            return { success: false, error: 'Account created! Please verify your email to log in.' };
+        }
+
         // 2. Create the extended profile row in the users table
         const userId = data.user?.id;
         if (userId) {
@@ -223,9 +235,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         setSession(data.session ?? null);
-        await loadProfile(data.session);
 
-        return { success: true, data };
+        // Fetch the profile synchronously so we can return the DBrole to the caller.
+        // This lets the login screen enforce role-lock immediately without waiting
+        // for a React state update round-trip.
+        let resolvedUiRole: UiRole | null = null;
+        if (data.session?.user) {
+            const profile = await fetchUserProfile(data.session.user.id);
+            setUserProfile(profile);
+            if (profile?.role) {
+                resolvedUiRole = DB_ROLE_TO_UI[profile.role] ?? null;
+            } else {
+                // Fallback to auth metadata
+                const metaRole = data.session.user.user_metadata?.role as string | undefined;
+                if (metaRole && metaRole in DB_ROLE_TO_UI) {
+                    resolvedUiRole = DB_ROLE_TO_UI[metaRole as DbRole];
+                }
+            }
+            setUiRole(resolvedUiRole);
+        }
+
+        return { success: true, uiRole: resolvedUiRole ?? undefined, data };
     };
 
     // ----- sign out -----
@@ -237,14 +267,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         try {
             const { error } = await supabase.auth.signOut();
-            if (error && !error.message.includes('session')) {
+            if (error) {
                 console.error('Logout error:', error);
+                // Force a local signOut if server signOut fails (e.g. token expired)
+                await supabase.auth.signOut({ scope: 'local' });
             }
-            return { success: true };
         } catch (err: any) {
             console.error('Exception during logout:', err);
-            return { success: true }; // local state already cleared
+            try {
+                await supabase.auth.signOut({ scope: 'local' });
+            } catch (e) {}
         }
+
+        // Final fallback: manually wipe the session token from local storage
+        try {
+            const keys = await AsyncStorage.getAllKeys();
+            const authKeys = keys.filter(k => k.startsWith('sb-') && k.endsWith('-auth-token'));
+            if (authKeys.length > 0) {
+                await AsyncStorage.multiRemove(authKeys);
+            }
+        } catch (e) {
+            console.error('Failed to manually clear async storage:', e);
+        }
+
+        return { success: true };
     };
 
     return (

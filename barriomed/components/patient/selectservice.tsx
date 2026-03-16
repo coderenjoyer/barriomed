@@ -1,6 +1,12 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import {
+    View,
+    Text,
+    TouchableOpacity,
+    StyleSheet,
+    ActivityIndicator,
+} from 'react-native';
+import { FontAwesome5, Feather } from '@expo/vector-icons';
 
 export type ServiceType = 'checkup' | 'prenatal' | 'immunization' | 'dental';
 
@@ -18,9 +24,8 @@ const services = [
         description: 'Consultation for common illnesses',
         icon: 'stethoscope',
         Lib: FontAwesome5,
-        color: '#F0FDFA', // bg-teal-50
-        iconColor: '#0D9488', // text-teal-600
-        borderColor: '#CCFBF1', // border-teal-100
+        color: '#F0FDFA',
+        iconColor: '#0D9488',
     },
     {
         id: 'prenatal',
@@ -28,9 +33,8 @@ const services = [
         description: 'Maternal health & check-ups',
         icon: 'baby-carriage',
         Lib: FontAwesome5,
-        color: '#FDF2F8', // bg-pink-50
-        iconColor: '#DB2777', // text-pink-600
-        borderColor: '#FCE7F3', // border-pink-100
+        color: '#FDF2F8',
+        iconColor: '#DB2777',
     },
     {
         id: 'immunization',
@@ -38,9 +42,8 @@ const services = [
         description: 'Vaccines for babies & adults',
         icon: 'syringe',
         Lib: FontAwesome5,
-        color: '#F0FDF4', // bg-green-50
-        iconColor: '#16A34A', // text-green-600
-        borderColor: '#DCFCE7', // border-green-100
+        color: '#F0FDF4',
+        iconColor: '#16A34A',
     },
     {
         id: 'dental',
@@ -48,9 +51,8 @@ const services = [
         description: 'Tooth extraction & cleaning',
         icon: 'smile',
         Lib: Feather,
-        color: '#EFF6FF', // bg-blue-50
-        iconColor: '#2563EB', // text-blue-600
-        borderColor: '#DBEAFE', // border-blue-100
+        color: '#EFF6FF',
+        iconColor: '#2563EB',
     },
 ] as const;
 
@@ -62,11 +64,13 @@ export function ServiceSelector({
 }: ServiceSelectorProps) {
     return (
         <View style={styles.container}>
+            {/* Header */}
             <View style={styles.header}>
                 <Text style={styles.title}>Kuha ng Pila</Text>
                 <Text style={styles.subtitle}>Select the service you need today</Text>
             </View>
 
+            {/* Service Cards */}
             <View style={styles.grid}>
                 {services.map((service) => {
                     const isSelected = selected === service.id;
@@ -76,30 +80,38 @@ export function ServiceSelector({
                         <TouchableOpacity
                             key={service.id}
                             onPress={() => onSelect(service.id as ServiceType)}
-                            activeOpacity={0.7}
+                            activeOpacity={0.75}
                             style={[
                                 styles.card,
-                                { borderColor: isSelected ? '#0D9488' : 'transparent' },
-                                isSelected && styles.cardSelected
+                                isSelected && styles.cardSelected,
                             ]}
                         >
+                            {/* Icon */}
                             <View
                                 style={[
                                     styles.iconContainer,
-                                    { backgroundColor: service.color }
+                                    { backgroundColor: service.color },
                                 ]}
                             >
-                                <IconLib name={service.icon as any} size={24} color={service.iconColor} />
+                                <IconLib
+                                    name={service.icon as any}
+                                    size={22}
+                                    color={service.iconColor}
+                                />
                             </View>
 
+                            {/* Text */}
                             <View style={styles.textContainer}>
                                 <Text style={styles.serviceTitle}>{service.title}</Text>
-                                <Text style={styles.serviceDescription}>{service.description}</Text>
+                                <Text style={styles.serviceDescription}>
+                                    {service.description}
+                                </Text>
                             </View>
 
+                            {/* Selected check */}
                             {isSelected && (
                                 <View style={styles.checkContainer}>
-                                    <Feather name="check" size={12} color="white" />
+                                    <Feather name="check" size={11} color="white" />
                                 </View>
                             )}
                         </TouchableOpacity>
@@ -107,12 +119,14 @@ export function ServiceSelector({
                 })}
             </View>
 
+            {/* CTA Button */}
             <TouchableOpacity
                 onPress={onConfirm}
                 disabled={!selected || isLoading}
+                activeOpacity={0.85}
                 style={[
                     styles.confirmButton,
-                    (!selected || isLoading) && styles.confirmButtonDisabled
+                    (!selected || isLoading) && styles.confirmButtonDisabled,
                 ]}
             >
                 {isLoading ? (
@@ -128,100 +142,118 @@ export function ServiceSelector({
 const styles = StyleSheet.create({
     container: {
         width: '100%',
+        paddingHorizontal: 20,   // ← fixes edge-to-edge cards
+        paddingTop: 8,
+        paddingBottom: 32,
     },
+
+    /* ── Header ── */
     header: {
-        marginBottom: 24,
+        marginBottom: 20,
     },
     title: {
-        fontSize: 24,
-        fontWeight: 'bold',
+        fontSize: 22,
+        fontWeight: '700',
         color: '#111827',
-        marginBottom: 4,
+        marginBottom: 2,
+        letterSpacing: -0.3,
     },
     subtitle: {
         fontSize: 14,
-        color: '#6B7280',
+        color: '#9CA3AF',
     },
+
+    /* ── Grid ── */
     grid: {
-        gap: 16,
-        marginBottom: 32,
+        gap: 12,
+        marginBottom: 28,
     },
+
+    /* ── Card ── */
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        borderRadius: 16,
-        backgroundColor: 'white',
-        borderWidth: 2,
-        borderColor: 'transparent',
+        paddingVertical: 14,
+        paddingHorizontal: 14,
+        borderRadius: 14,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1.5,
+        borderColor: '#F3F4F6',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 2,
+        shadowOpacity: 0.04,
+        shadowRadius: 3,
+        elevation: 1,
     },
     cardSelected: {
-        borderColor: '#CCFBF1', // Light teal border
-        backgroundColor: '#F0FDFA', // Very light teal background tint if desired, usually standard white with border is clearer
+        borderColor: '#0D9488',
+        backgroundColor: '#F0FDFA',
         shadowColor: '#0D9488',
-        shadowOpacity: 0.1,
-        elevation: 4,
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
+        elevation: 3,
     },
+
+    /* ── Icon ── */
     iconContainer: {
-        width: 48,
-        height: 48,
+        width: 46,
+        height: 46,
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 16,
+        marginRight: 14,
     },
+
+    /* ── Text ── */
     textContainer: {
         flex: 1,
     },
     serviceTitle: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
         color: '#111827',
+        marginBottom: 2,
     },
     serviceDescription: {
-        fontSize: 13,
-        color: '#6B7280',
+        fontSize: 12,
+        color: '#9CA3AF',
+        lineHeight: 17,
     },
+
+    /* ── Check badge ── */
     checkContainer: {
-        position: 'absolute',
-        top: 12,
-        right: 12,
         width: 20,
         height: 20,
         borderRadius: 10,
         backgroundColor: '#0D9488',
         alignItems: 'center',
         justifyContent: 'center',
+        marginLeft: 8,
     },
+
+    /* ── Confirm button ── */
     confirmButton: {
         width: '100%',
         backgroundColor: '#0D9488',
-        paddingVertical: 16,
-        borderRadius: 16,
+        paddingVertical: 15,
+        borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#0D9488',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
+        shadowOpacity: 0.25,
         shadowRadius: 8,
         elevation: 4,
-        flexDirection: 'row',
-        gap: 8,
     },
     confirmButtonDisabled: {
-        backgroundColor: '#D1D5DB',
+        backgroundColor: '#E5E7EB',
         shadowOpacity: 0,
         elevation: 0,
     },
     confirmButtonText: {
         color: 'white',
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
+        letterSpacing: 0.2,
     },
 });
-

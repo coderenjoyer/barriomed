@@ -1,100 +1,159 @@
-import React, { useState } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, LayoutAnimation, UIManager, Platform } from 'react-native'
+import React, { useState, useEffect, useCallback } from 'react'
+import { View, Text, TouchableOpacity, ScrollView, LayoutAnimation, UIManager, Platform, ActivityIndicator, Modal, TextInput, Alert } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import { PatientQueueItem, Patient } from './patientqueuecall'
+import { queueService, QueueStatus } from '../../lib/queueService'
+import { ServiceType } from '../patient/selectservice'
 
-const MOCK_PATIENTS: Patient[] = [
-    {
-        id: '1',
-        queueNumber: 38,
-        name: 'Pedro Garcia',
-        service: 'checkup',
-        status: 'serving',
-        arrivalTime: '08:30 AM',
-    },
-    {
-        id: '2',
-        queueNumber: 39,
-        name: 'Maria Santos',
-        service: 'prenatal',
-        status: 'arrived',
-        arrivalTime: '08:45 AM',
-    },
-    {
-        id: '3',
-        queueNumber: 40,
-        name: 'Juan Dela Cruz',
-        service: 'dental',
-        status: 'pending',
-        arrivalTime: '09:00 AM',
-    },
-    {
-        id: '4',
-        queueNumber: 41,
-        name: 'Ana Reyes',
-        service: 'checkup',
-        status: 'arrived',
-        arrivalTime: '09:15 AM',
-    },
-    {
-        id: '5',
-        queueNumber: 42,
-        name: 'Rosa Mendoza',
-        service: 'immunization',
-        status: 'pending',
-        arrivalTime: '09:20 AM',
-    },
-]
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export function QueueCommander() {
     const navigation = useNavigation()
-    const [patients, setPatients] = useState<Patient[]>(MOCK_PATIENTS)
+    const [patients, setPatients] = useState<Patient[]>([])
     const [missedPatients, setMissedPatients] = useState<Patient[]>([])
     const [showMissed, setShowMissed] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
+    const [isActionLoading, setIsActionLoading] = useState(false)
+    const [selectedService, setSelectedService] = useState<ServiceType | 'all'>('all')
+    
+    // Walk-in Modal State
+    const [walkInModalVisible, setWalkInModalVisible] = useState(false)
+    const [walkInName, setWalkInName] = useState('')
+    const [walkInService, setWalkInService] = useState<ServiceType>('checkup')
+
     const currentPatient = patients.find((p) => p.status === 'serving')
-    const nextPatient = patients.find((p) => p.status !== 'serving')
+    const waitingPatients = patients.filter((p) => p.status === 'pending' || p.status === 'arrived')
 
-    const handleCallNext = () => {
-        if (!nextPatient) return
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setPatients((prev) => {
-            const newPatients = [...prev]
-            if (currentPatient) {
-                const idx = newPatients.findIndex((p) => p.id === currentPatient.id)
-                if (idx !== -1) newPatients.splice(idx, 1)
-            }
-            const nextIdx = newPatients.findIndex((p) => p.id === nextPatient.id)
-            if (nextIdx !== -1) {
-                newPatients[nextIdx] = {
-                    ...newPatients[nextIdx],
-                    status: 'serving',
-                }
-            }
-            return newPatients
-        })
+    const fetchQueue = useCallback(async () => {
+        try {
+            const data = await queueService.getQueueList(selectedService === 'all' ? undefined : selectedService);
+            
+            const mappedPatients: Patient[] = data.map((item: any) => ({
+                id: item.id,
+                queueNumber: item.queue_number,
+                name: item.patient_name || (item.users ? `${item.users.first_name} ${item.users.last_name}` : 'Unknown'),
+                service: item.service_type as ServiceType,
+                status: mapDbStatusToUi(item.status),
+                arrivalTime: new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }));
+
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+            setPatients(mappedPatients.filter(p => p.status !== 'missed'));
+            setMissedPatients(mappedPatients.filter(p => p.status === 'missed'));
+        } catch (error) {
+            console.error('Error fetching queue:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [selectedService]);
+
+    const mapDbStatusToUi = (status: string): Patient['status'] => {
+        switch (status) {
+            case 'Serving': return 'serving';
+            case 'Waiting': return 'pending';
+            case 'No Show': return 'missed';
+            case 'Completed': return 'completed';
+            default: return 'pending';
+        }
+    };
+
+    useEffect(() => {
+        fetchQueue();
+        const unsubscribe = queueService.subscribeToStaffQueue(() => {
+            fetchQueue();
+        });
+        return () => unsubscribe();
+    }, [fetchQueue]);
+
+    const handleCallNext = async () => {
+        if (waitingPatients.length === 0) {
+            Alert.alert('Empty Queue', 'No patients in waiting list.');
+            return;
+        }
+        
+        // If there's a currently serving patient, we should probably mark them as complete first
+        // or let the staff decide. The requirement says CALL NEXT increments currently_serving.
+        
+        setIsActionLoading(true);
+        try {
+            // we determine the service type to call next
+            // if 'all' is selected, we take the one from the first waiting patient
+            const serviceToCall = selectedService === 'all' ? waitingPatients[0].service : selectedService;
+            await queueService.callNext(serviceToCall);
+            // fetchQueue() will be called by subscription
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to call next patient');
+        } finally {
+            setIsActionLoading(false);
+        }
     }
 
-    const handleNoShow = () => {
+    const handleNoShow = async () => {
         if (!currentPatient) return
-        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setMissedPatients((prev) => [
-            {
-                ...currentPatient,
-                status: 'missed',
-            },
-            ...prev,
-        ])
-        handleCallNext()
+        setIsActionLoading(true);
+        try {
+            await queueService.markNoShow(currentPatient.id);
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to mark as no show');
+        } finally {
+            setIsActionLoading(false);
+        }
     }
 
-    const handleCompleted = () => {
-        handleCallNext()
+    const handleCompleted = async () => {
+        if (!currentPatient) return
+        setIsActionLoading(true);
+        try {
+            await queueService.completePatient(currentPatient.id);
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to mark as completed');
+        } finally {
+            setIsActionLoading(false);
+        }
     }
+
+    const handleReinsert = async (id: string) => {
+        setIsActionLoading(true);
+        try {
+            await queueService.reinsertPatient(id);
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to reinsert patient');
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
+
+    const handleAddWalkIn = async () => {
+        if (!walkInName.trim()) {
+            Alert.alert('Validation Error', 'Please enter patient name');
+            return;
+        }
+        setIsActionLoading(true);
+        try {
+            await queueService.registerWalkIn(walkInName, walkInService);
+            setWalkInModalVisible(false);
+            setWalkInName('');
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to register walk-in');
+        } finally {
+            setIsActionLoading(false);
+        }
+    };
 
     const toggleMissed = () => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setShowMissed(!showMissed);
+    }
+
+    if (isLoading) {
+        return (
+            <View className="flex-1 items-center justify-center">
+                <ActivityIndicator size="large" color="#0D9488" />
+            </View>
+        );
     }
 
     return (
@@ -141,15 +200,13 @@ export function QueueCommander() {
                             </View>
                             <View className="bg-white px-3 py-1 rounded-full border border-gray-100">
                                 <Text className="text-sm text-gray-500 font-medium">
-                                    {patients.length - (currentPatient ? 1 : 0)} Waiting
+                                    {waitingPatients.length} Waiting
                                 </Text>
                             </View>
                         </View>
 
                         <ScrollView className="flex-1 p-4" nestedScrollEnabled={true}>
-                            {patients
-                                .filter((p) => p.status !== 'serving')
-                                .map((patient, index) => (
+                            {waitingPatients.map((patient, index) => (
                                     <View key={patient.id} className="mb-3">
                                         <PatientQueueItem
                                             patient={patient}
@@ -157,7 +214,7 @@ export function QueueCommander() {
                                         />
                                     </View>
                                 ))}
-                            {patients.filter((p) => p.status !== 'serving').length === 0 && (
+                            {waitingPatients.length === 0 && (
                                 <View className="items-center py-12">
                                     <Text className="text-gray-400">Queue is empty</Text>
                                 </View>
@@ -173,33 +230,37 @@ export function QueueCommander() {
 
                         <TouchableOpacity
                             onPress={handleCallNext}
-                            className="w-full py-5 bg-teal-600 rounded-2xl shadow-lg flex-row items-center justify-center gap-3"
+                            disabled={isActionLoading}
+                            className={`w-full py-5 rounded-2xl shadow-lg flex-row items-center justify-center gap-3 ${isActionLoading ? 'bg-teal-400' : 'bg-teal-600'}`}
                         >
-                            <Feather name="mic" size={24} color="white" />
+                            {isActionLoading ? <ActivityIndicator color="white" /> : <Feather name="mic" size={24} color="white" />}
                             <Text className="text-white font-bold text-lg">CALL NEXT</Text>
                         </TouchableOpacity>
 
                         <View className="flex-row gap-4">
                             <TouchableOpacity
                                 onPress={handleNoShow}
-                                className="flex-1 py-4 bg-amber-50 border border-amber-200 rounded-2xl flex-col items-center justify-center gap-2"
+                                disabled={!currentPatient || isActionLoading}
+                                className={`flex-1 py-4 border rounded-2xl flex-col items-center justify-center gap-2 ${!currentPatient ? 'bg-gray-50 border-gray-200' : 'bg-amber-50 border-amber-200'}`}
                             >
-                                <Feather name="user-x" size={20} color="#D97706" />
-                                <Text className="text-amber-700 font-bold text-sm">NO SHOW</Text>
+                                <Feather name="user-x" size={20} color={!currentPatient ? '#9CA3AF' : '#D97706'} />
+                                <Text className={`font-bold text-sm ${!currentPatient ? 'text-gray-400' : 'text-amber-700'}`}>NO SHOW</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity
                                 onPress={handleCompleted}
-                                className="flex-1 py-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex-col items-center justify-center gap-2"
+                                disabled={!currentPatient || isActionLoading}
+                                className={`flex-1 py-4 border rounded-2xl flex-col items-center justify-center gap-2 ${!currentPatient ? 'bg-gray-50 border-gray-200' : 'bg-emerald-50 border-emerald-200'}`}
                             >
-                                <Feather name="check-square" size={20} color="#059669" />
-                                <Text className="text-emerald-700 font-bold text-sm">COMPLETED</Text>
+                                <Feather name="check-square" size={20} color={!currentPatient ? '#9CA3AF' : '#059669'} />
+                                <Text className={`font-bold text-sm ${!currentPatient ? 'text-gray-400' : 'text-emerald-700'}`}>COMPLETED</Text>
                             </TouchableOpacity>
                         </View>
 
                         <View className="h-px bg-gray-100 my-2" />
 
                         <TouchableOpacity
+                            onPress={() => setWalkInModalVisible(true)}
                             className="w-full py-3 bg-gray-50 border border-gray-200 rounded-xl flex-row items-center justify-center gap-2"
                         >
                             <Feather name="user-plus" size={16} color="#374151" />
@@ -253,8 +314,8 @@ export function QueueCommander() {
                                                     {p.name}
                                                 </Text>
                                             </View>
-                                            <TouchableOpacity>
-                                                <Text className="text-xs font-bold text-teal-600">Recall</Text>
+                                            <TouchableOpacity onPress={() => handleReinsert(p.id)}>
+                                                <Text className="text-xs font-bold text-teal-600">Re-insert</Text>
                                             </TouchableOpacity>
                                         </View>
                                     ))
@@ -270,7 +331,59 @@ export function QueueCommander() {
                     </View>
                 </View>
             </View>
+
+            {/* Walk-in Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={walkInModalVisible}
+                onRequestClose={() => setWalkInModalVisible(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                    <View className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl">
+                        <View className="flex-row justify-between items-center mb-6">
+                            <Text className="text-xl font-bold text-gray-900">Add Walk-In Patient</Text>
+                            <TouchableOpacity onPress={() => setWalkInModalVisible(false)}>
+                                <Feather name="x" size={24} color="#9CA3AF" />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text className="text-sm font-medium text-gray-700 mb-2">Patient Name</Text>
+                        <TextInput
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-4 text-gray-900"
+                            placeholder="Full Name"
+                            value={walkInName}
+                            onChangeText={setWalkInName}
+                        />
+
+                        <Text className="text-sm font-medium text-gray-700 mb-2">Service Type</Text>
+                        <View className="flex-row flex-wrap gap-2 mb-8">
+                            {['checkup', 'prenatal', 'immunization', 'dental'].map((s) => (
+                                <TouchableOpacity
+                                    key={s}
+                                    onPress={() => setWalkInService(s as ServiceType)}
+                                    className={`px-4 py-2 rounded-full border ${walkInService === s ? 'bg-teal-600 border-teal-600' : 'bg-white border-gray-200'}`}
+                                >
+                                    <Text className={`text-xs font-bold capitalize ${walkInService === s ? 'text-white' : 'text-gray-600'}`}>
+                                        {s}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <TouchableOpacity
+                            onPress={handleAddWalkIn}
+                            disabled={isActionLoading}
+                            className={`w-full py-4 rounded-xl flex-row items-center justify-center gap-2 ${isActionLoading ? 'bg-teal-400' : 'bg-teal-600'}`}
+                        >
+                            {isActionLoading && <ActivityIndicator color="white" />}
+                            <Text className="text-white font-bold text-lg">REGISTER PATIENT</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </ScrollView>
     )
 }
+
 

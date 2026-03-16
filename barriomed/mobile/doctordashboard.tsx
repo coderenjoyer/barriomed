@@ -6,6 +6,7 @@ import { PatientProfile, PatientData } from '../components/doctor/patientprofile
 import { ConsultationHistory, ConsultationRecord } from '../components/doctor/consultationhistory';
 import { ConsultationForm } from '../components/doctor/consultationform';
 import { PrescriptionBuilder } from '../components/doctor/patientprescription';
+import { useAuth } from '../lib/AuthContext';
 
 // Placeholder mock data
 const MOCK_PATIENT: PatientData = {
@@ -38,7 +39,20 @@ const MOCK_HISTORY: ConsultationRecord[] = [
 ];
 
 export function DoctorDashboard({ onLogout }: { onLogout: () => void }) {
+    const { userProfile, session } = useAuth();
     const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+
+    const firstName  = userProfile?.first_name ?? session?.user?.user_metadata?.first_name ?? '';
+    const lastName   = userProfile?.last_name  ?? session?.user?.user_metadata?.last_name  ?? '';
+    const fullName   = [firstName, lastName].filter(Boolean).join(' ') || 'Doctor';
+    const doctorLabel = fullName ? `Dr. ${fullName}` : 'Doctor';
+    const emailLabel  = userProfile?.email ?? session?.user?.email ?? '';
+
+    // Substitute the real doctor name into consultation history
+    const mockHistory: ConsultationRecord[] = MOCK_HISTORY.map(r => ({
+        ...r,
+        doctor: doctorLabel,
+    }));
 
     return (
         <View style={styles.container}>
@@ -51,7 +65,8 @@ export function DoctorDashboard({ onLogout }: { onLogout: () => void }) {
                         </TouchableOpacity>
                     )}
                     <View>
-                        <Text style={styles.greetingText}>Dr. Physician</Text>
+                        <Text style={styles.greetingText}>{doctorLabel}</Text>
+                        {emailLabel ? <Text style={styles.subText}>{emailLabel}</Text> : null}
                         <Text style={styles.nameText}>Doctor Dashboard</Text>
                     </View>
                 </View>
@@ -70,7 +85,7 @@ export function DoctorDashboard({ onLogout }: { onLogout: () => void }) {
                         <PatientProfile patient={MOCK_PATIENT} />
                         
                         <View style={styles.sectionMargin}>
-                            <ConsultationHistory history={MOCK_HISTORY} />
+                        <ConsultationHistory history={mockHistory} />
                         </View>
                         
                         <View style={styles.sectionMargin}>
@@ -120,6 +135,11 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#6B7280',
         fontWeight: '500',
+    },
+    subText: {
+        fontSize: 11,
+        color: '#9CA3AF',
+        marginTop: 1,
     },
     nameText: {
         fontSize: 20,

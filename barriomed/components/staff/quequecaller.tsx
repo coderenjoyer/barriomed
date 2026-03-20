@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { View, Text, TouchableOpacity, ScrollView, LayoutAnimation, UIManager, Platform, ActivityIndicator, Modal, TextInput, Alert } from 'react-native'
+import { View, Text, TouchableOpacity, ScrollView, LayoutAnimation, UIManager, Platform, ActivityIndicator, Modal, TextInput, Alert, RefreshControl } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import { PatientQueueItem, Patient } from './patientqueuecall'
 import { queueService, QueueStatus } from '../../lib/queueService'
+import { supabase } from '../../lib/supabase'
 import { ServiceType } from '../patient/selectservice'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -60,12 +61,33 @@ export function QueueCommander() {
         }
     };
 
+    const [refreshing, setRefreshing] = useState(false);
+
     useEffect(() => {
         fetchQueue();
-        const unsubscribe = queueService.subscribeToStaffQueue(() => {
+        
+        // Listen to active realtime changes
+        const unsubscribeQueue = queueService.subscribeToStaffQueue(() => {
             fetchQueue();
         });
-        return () => unsubscribe();
+
+        // Listen for session stabilizations after logins to prevent RLS hiding active rows
+        const { data: authListener } = supabase.auth.onAuthStateChange((event: any, session: any) => {
+            if (session) {
+                fetchQueue();
+            }
+        });
+
+        return () => {
+            unsubscribeQueue();
+            authListener.subscription.unsubscribe();
+        }
+    }, [fetchQueue]);
+
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        await fetchQueue();
+        setRefreshing(false);
     }, [fetchQueue]);
 
     const handleCallNext = async () => {
@@ -157,7 +179,13 @@ export function QueueCommander() {
     }
 
     return (
-        <ScrollView className="flex-1 bg-gray-50" contentContainerStyle={{ flexGrow: 1 }}>
+        <ScrollView 
+            className="flex-1 bg-gray-50" 
+            contentContainerStyle={{ flexGrow: 1 }}
+            refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#0D9488"]} />
+            }
+        >
             <View className="flex-1 flex-col lg:flex-row gap-6 p-6 max-w-7xl mx-auto w-full">
                 {/* LEFT PANEL - QUEUE LIST */}
                 <View className="flex-1 flex-col gap-6">

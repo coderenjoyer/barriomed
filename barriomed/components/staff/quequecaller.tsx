@@ -19,7 +19,7 @@ export function QueueCommander() {
     const [isLoading, setIsLoading] = useState(true)
     const [isActionLoading, setIsActionLoading] = useState(false)
     const [selectedService, setSelectedService] = useState<ServiceType | 'all'>('all')
-    
+
     // Walk-in Modal State
     const [walkInModalVisible, setWalkInModalVisible] = useState(false)
     const [walkInName, setWalkInName] = useState('')
@@ -27,11 +27,12 @@ export function QueueCommander() {
 
     const currentPatient = patients.find((p) => p.status === 'serving')
     const waitingPatients = patients.filter((p) => p.status === 'pending' || p.status === 'arrived')
+    const nextPatient = waitingPatients.length > 0 ? waitingPatients[0] : null
 
     const fetchQueue = useCallback(async () => {
         try {
             const data = await queueService.getQueueList(selectedService === 'all' ? undefined : selectedService);
-            
+
             const mappedPatients: Patient[] = data.map((item: any) => ({
                 id: item.id,
                 queueNumber: item.queue_number,
@@ -65,7 +66,7 @@ export function QueueCommander() {
 
     useEffect(() => {
         fetchQueue();
-        
+
         // Listen to active realtime changes
         const unsubscribeQueue = queueService.subscribeToStaffQueue(() => {
             fetchQueue();
@@ -91,22 +92,45 @@ export function QueueCommander() {
     }, [fetchQueue]);
 
     const handleCallNext = async () => {
+        console.log('[QueueCommander] handleCallNext pressed. waitingPatients:', waitingPatients.length, 'currentPatient:', currentPatient?.queueNumber);
+
         if (waitingPatients.length === 0) {
             Alert.alert('Empty Queue', 'No patients in waiting list.');
             return;
         }
-        
-        // If there's a currently serving patient, we should probably mark them as complete first
-        // or let the staff decide. The requirement says CALL NEXT increments currently_serving.
-        
+
+        // If there's a patient currently being served, confirm before replacing them
+        if (currentPatient) {
+            Alert.alert(
+                'Patient Still Being Served',
+                `#${currentPatient.queueNumber} (${currentPatient.name}) is still being served. Would you like to mark them as complete and call the next patient?`,
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Complete & Call Next', style: 'default', onPress: () => doCallNext() },
+                ]
+            );
+            return;
+        }
+
+        await doCallNext();
+    }
+
+    const doCallNext = async () => {
         setIsActionLoading(true);
         try {
-            // we determine the service type to call next
-            // if 'all' is selected, we take the one from the first waiting patient
-            const serviceToCall = selectedService === 'all' ? waitingPatients[0].service : selectedService;
-            await queueService.callNext(serviceToCall);
-            // fetchQueue() will be called by subscription
+            const serviceToCall = selectedService === 'all' ? waitingPatients[0]?.service : selectedService;
+            console.log('[QueueCommander] doCallNext calling with serviceType:', serviceToCall);
+            const result = await queueService.callNext(serviceToCall);
+            console.log('[QueueCommander] callNext result:', JSON.stringify(result));
+
+            if (!result || (Array.isArray(result) && result.length === 0)) {
+                Alert.alert('No Match', 'No waiting patient found in the database for this service type. Try refreshing.');
+            }
+
+            // Force refresh in case realtime subscription misses the update
+            await fetchQueue();
         } catch (error: any) {
+            console.error('[QueueCommander] callNext error:', error);
             Alert.alert('Error', error.message || 'Failed to call next patient');
         } finally {
             setIsActionLoading(false);
@@ -132,6 +156,25 @@ export function QueueCommander() {
             await queueService.completePatient(currentPatient.id);
         } catch (error: any) {
             Alert.alert('Error', error.message || 'Failed to mark as completed');
+        } finally {
+            setIsActionLoading(false);
+        }
+    }
+
+    const handleCompleteAndCallNext = async () => {
+        if (!currentPatient) return;
+        if (waitingPatients.length === 0) {
+            // No one next — just complete the current patient
+            await handleCompleted();
+            return;
+        }
+        setIsActionLoading(true);
+        try {
+            const serviceToCall = selectedService === 'all' ? waitingPatients[0].service : selectedService;
+            // call_next RPC auto-completes the current patient and promotes the next one
+            await queueService.callNext(serviceToCall);
+        } catch (error: any) {
+            Alert.alert('Error', error.message || 'Failed to complete and call next');
         } finally {
             setIsActionLoading(false);
         }
@@ -170,6 +213,16 @@ export function QueueCommander() {
         setShowMissed(!showMissed);
     }
 
+    const getServiceLabel = (type: ServiceType) => {
+        switch (type) {
+            case 'checkup': return 'Check-up';
+            case 'prenatal': return 'Prenatal';
+            case 'immunization': return 'Immunization';
+            case 'dental': return 'Dental';
+            default: return type;
+        }
+    }
+
     if (isLoading) {
         return (
             <View className="flex-1 items-center justify-center">
@@ -179,8 +232,8 @@ export function QueueCommander() {
     }
 
     return (
-        <ScrollView 
-            className="flex-1 bg-gray-50" 
+        <ScrollView
+            className="flex-1 bg-gray-50"
             contentContainerStyle={{ flexGrow: 1 }}
             refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#0D9488"]} />
@@ -190,30 +243,69 @@ export function QueueCommander() {
                 {/* LEFT PANEL - QUEUE LIST */}
                 <View className="flex-1 flex-col gap-6">
                     {/* Now Serving Display */}
-                    <View className="bg-teal-600 rounded-3xl p-8 shadow-xl relative overflow-hidden">
+                    <View className={`rounded-3xl p-8 shadow-xl relative overflow-hidden ${currentPatient ? 'bg-teal-600' : 'bg-gray-400'}`}>
                         <View className="absolute -top-5 -right-5 p-8 opacity-10">
-                            <Feather name="mic" size={160} color="white" />
+                            <Feather name={currentPatient ? "mic" : "pause-circle"} size={160} color="white" />
                         </View>
 
                         <View className="relative z-10">
-                            <Text className="text-teal-100 font-medium uppercase tracking-widest mb-2">
-                                Now Serving
+                            <Text className={`font-medium uppercase tracking-widest mb-2 ${currentPatient ? 'text-teal-100' : 'text-gray-200'}`}>
+                                {currentPatient ? 'Now Serving' : 'No Patient Being Served'}
                             </Text>
-                            <View className="flex-row items-end gap-4">
-                                <Text className="text-7xl font-bold tracking-tight text-white m-0 p-0 leading-none">
-                                    #{currentPatient?.queueNumber || '--'}
-                                </Text>
-                                {currentPatient && (
-                                    <View className="flex-col pb-2">
-                                        <Text className="text-2xl font-bold text-white mb-1">
-                                            {currentPatient.name}
+
+                            {currentPatient ? (
+                                <>
+                                    <View className="flex-row items-end gap-4 mb-4">
+                                        <Text className="text-7xl font-bold tracking-tight text-white m-0 p-0 leading-none">
+                                            #{currentPatient.queueNumber}
                                         </Text>
-                                        <Text className="text-teal-100 opacity-80 font-medium">
-                                            {currentPatient.service.toUpperCase()}
+                                        <View className="flex-col pb-2">
+                                            <Text className="text-2xl font-bold text-white mb-1">
+                                                {currentPatient.name}
+                                            </Text>
+                                            <Text className={`font-medium ${currentPatient ? 'text-teal-100 opacity-80' : 'text-gray-300'}`}>
+                                                {getServiceLabel(currentPatient.service)} • Arrived {currentPatient.arrivalTime}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    {/* Inline Actions for Current Patient */}
+                                    <View className="flex-row gap-3 mt-2">
+                                        <TouchableOpacity
+                                            onPress={handleCompleted}
+                                            disabled={isActionLoading}
+                                            className="flex-1 py-3 bg-white/20 rounded-2xl flex-row items-center justify-center gap-2 border border-white/30"
+                                        >
+                                            {isActionLoading ? (
+                                                <ActivityIndicator color="white" size="small" />
+                                            ) : (
+                                                <Feather name="check-circle" size={18} color="white" />
+                                            )}
+                                            <Text className="text-white font-bold text-sm">MARK COMPLETE</Text>
+                                        </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            onPress={handleNoShow}
+                                            disabled={isActionLoading}
+                                            className="py-3 px-5 bg-white/10 rounded-2xl flex-row items-center justify-center gap-2 border border-white/20"
+                                        >
+                                            <Feather name="user-x" size={18} color="white" />
+                                            <Text className="text-white font-bold text-sm">NO SHOW</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </>
+                            ) : (
+                                <View className="flex-row items-end gap-4">
+                                    <Text className="text-7xl font-bold tracking-tight text-white m-0 p-0 leading-none opacity-40">
+                                        #--
+                                    </Text>
+                                    <View className="flex-col pb-2">
+                                        <Text className="text-lg text-white opacity-60">
+                                            Press "Call Next" to serve the next patient
                                         </Text>
                                     </View>
-                                )}
-                            </View>
+                                </View>
+                            )}
                         </View>
                     </View>
 
@@ -235,13 +327,13 @@ export function QueueCommander() {
 
                         <ScrollView className="flex-1 p-4" nestedScrollEnabled={true}>
                             {waitingPatients.map((patient, index) => (
-                                    <View key={patient.id} className="mb-3">
-                                        <PatientQueueItem
-                                            patient={patient}
-                                            isNext={index === 0}
-                                        />
-                                    </View>
-                                ))}
+                                <View key={patient.id} className="mb-3">
+                                    <PatientQueueItem
+                                        patient={patient}
+                                        isNext={index === 0}
+                                    />
+                                </View>
+                            ))}
                             {waitingPatients.length === 0 && (
                                 <View className="items-center py-12">
                                     <Text className="text-gray-400">Queue is empty</Text>
@@ -256,34 +348,56 @@ export function QueueCommander() {
                     <View className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex-col gap-4">
                         <Text className="font-bold text-gray-900 mb-2 text-lg">Queue Controls</Text>
 
+                        {/* Call Next Button - Primary action */}
                         <TouchableOpacity
                             onPress={handleCallNext}
                             disabled={isActionLoading}
                             className={`w-full py-5 rounded-2xl shadow-lg flex-row items-center justify-center gap-3 ${isActionLoading ? 'bg-teal-400' : 'bg-teal-600'}`}
                         >
-                            {isActionLoading ? <ActivityIndicator color="white" /> : <Feather name="mic" size={24} color="white" />}
+                            {isActionLoading ? (
+                                <ActivityIndicator color="white" />
+                            ) : (
+                                <Feather name="mic" size={24} color="white" />
+                            )}
                             <Text className="text-white font-bold text-lg">CALL NEXT</Text>
                         </TouchableOpacity>
 
-                        <View className="flex-row gap-4">
-                            <TouchableOpacity
-                                onPress={handleNoShow}
-                                disabled={!currentPatient || isActionLoading}
-                                className={`flex-1 py-4 border rounded-2xl flex-col items-center justify-center gap-2 ${!currentPatient ? 'bg-gray-50 border-gray-200' : 'bg-amber-50 border-amber-200'}`}
-                            >
-                                <Feather name="user-x" size={20} color={!currentPatient ? '#9CA3AF' : '#D97706'} />
-                                <Text className={`font-bold text-sm ${!currentPatient ? 'text-gray-400' : 'text-amber-700'}`}>NO SHOW</Text>
-                            </TouchableOpacity>
+                        {/* Preview of who is next */}
+                        {nextPatient && (
+                            <View className="bg-gray-50 rounded-xl p-3 flex-row items-center gap-3 border border-gray-100">
+                                <View className="w-8 h-8 rounded-lg bg-teal-100 items-center justify-center">
+                                    <Text className="text-teal-700 font-bold text-sm">#{nextPatient.queueNumber}</Text>
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="text-sm font-semibold text-gray-800">{nextPatient.name}</Text>
+                                    <Text className="text-xs text-gray-500">{getServiceLabel(nextPatient.service)}</Text>
+                                </View>
+                                <View className="bg-teal-50 px-2 py-1 rounded-full border border-teal-100">
+                                    <Text className="text-[10px] font-bold text-teal-600 uppercase">Next Up</Text>
+                                </View>
+                            </View>
+                        )}
 
+                        {/* Complete & Call Next shortcut (only available when someone is being served AND there's a next patient) */}
+                        {currentPatient && nextPatient && (
                             <TouchableOpacity
-                                onPress={handleCompleted}
-                                disabled={!currentPatient || isActionLoading}
-                                className={`flex-1 py-4 border rounded-2xl flex-col items-center justify-center gap-2 ${!currentPatient ? 'bg-gray-50 border-gray-200' : 'bg-emerald-50 border-emerald-200'}`}
+                                onPress={handleCompleteAndCallNext}
+                                disabled={isActionLoading}
+                                className={`w-full py-4 rounded-2xl flex-row items-center justify-center gap-2 border-2 ${isActionLoading ? 'border-emerald-200 bg-emerald-50' : 'border-emerald-300 bg-emerald-50'
+                                    }`}
                             >
-                                <Feather name="check-square" size={20} color={!currentPatient ? '#9CA3AF' : '#059669'} />
-                                <Text className={`font-bold text-sm ${!currentPatient ? 'text-gray-400' : 'text-emerald-700'}`}>COMPLETED</Text>
+                                {isActionLoading ? (
+                                    <ActivityIndicator color="#059669" size="small" />
+                                ) : (
+                                    <>
+                                        <Feather name="check-circle" size={18} color="#059669" />
+                                        <Feather name="arrow-right" size={14} color="#059669" />
+                                        <Feather name="mic" size={18} color="#059669" />
+                                    </>
+                                )}
+                                <Text className="text-emerald-700 font-bold text-sm">COMPLETE & CALL NEXT</Text>
                             </TouchableOpacity>
-                        </View>
+                        )}
 
                         <View className="h-px bg-gray-100 my-2" />
 
@@ -413,5 +527,3 @@ export function QueueCommander() {
         </ScrollView>
     )
 }
-
-

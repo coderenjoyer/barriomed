@@ -40,7 +40,6 @@ yarn-error.*
 /ios
 /android
 
-#backend
-backend/
+
 
 

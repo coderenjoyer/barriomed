@@ -18,9 +18,9 @@ const services = [
         description: 'Consultation for common illnesses',
         icon: 'stethoscope',
         Lib: FontAwesome5,
-        color: '#F0FDFA', // bg-teal-50
-        iconColor: '#0D9488', // text-teal-600
-        borderColor: '#CCFBF1', // border-teal-100
+        color: '#F0FDFA',
+        iconColor: '#0D9488',
+        borderColor: '#CCFBF1',
     },
     {
         id: 'prenatal',
@@ -28,9 +28,9 @@ const services = [
         description: 'Maternal health & check-ups',
         icon: 'baby-carriage',
         Lib: FontAwesome5,
-        color: '#FDF2F8', // bg-pink-50
-        iconColor: '#DB2777', // text-pink-600
-        borderColor: '#FCE7F3', // border-pink-100
+        color: '#FDF2F8',
+        iconColor: '#DB2777',
+        borderColor: '#FCE7F3',
     },
     {
         id: 'immunization',
@@ -38,9 +38,9 @@ const services = [
         description: 'Vaccines for babies & adults',
         icon: 'syringe',
         Lib: FontAwesome5,
-        color: '#F0FDF4', // bg-green-50
-        iconColor: '#16A34A', // text-green-600
-        borderColor: '#DCFCE7', // border-green-100
+        color: '#F0FDF4',
+        iconColor: '#16A34A',
+        borderColor: '#DCFCE7',
     },
     {
         id: 'dental',
@@ -48,9 +48,9 @@ const services = [
         description: 'Tooth extraction & cleaning',
         icon: 'smile',
         Lib: Feather,
-        color: '#EFF6FF', // bg-blue-50
-        iconColor: '#2563EB', // text-blue-600
-        borderColor: '#DBEAFE', // border-blue-100
+        color: '#EFF6FF',
+        iconColor: '#2563EB',
+        borderColor: '#DBEAFE',
     },
 ] as const;
 
@@ -79,7 +79,6 @@ export function ServiceSelector({
                             activeOpacity={0.7}
                             style={[
                                 styles.card,
-                                { borderColor: isSelected ? '#0D9488' : 'transparent' },
                                 isSelected && styles.cardSelected
                             ]}
                         >
@@ -128,6 +127,7 @@ export function ServiceSelector({
 const styles = StyleSheet.create({
     container: {
         width: '100%',
+        paddingHorizontal: 16, // ← fix: prevents border from hugging screen edge
     },
     header: {
         marginBottom: 24,
@@ -161,8 +161,8 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     cardSelected: {
-        borderColor: '#CCFBF1', // Light teal border
-        backgroundColor: '#F0FDFA', // Very light teal background tint if desired, usually standard white with border is clearer
+        borderColor: '#0D9488',
+        backgroundColor: '#F0FDFA',
         shadowColor: '#0D9488',
         shadowOpacity: 0.1,
         elevation: 4,
@@ -199,7 +199,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     confirmButton: {
-        width: '100%',
         backgroundColor: '#0D9488',
         paddingVertical: 16,
         borderRadius: 16,
@@ -224,4 +223,3 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 });
-

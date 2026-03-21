@@ -416,6 +416,14 @@ export function QueueCommander() {
                             <Feather name="package" size={16} color="#4F46E5" />
                             <Text className="text-indigo-700 font-semibold text-sm">Manage Inventory</Text>
                         </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('QueueHistory' as never)}
+                            className="w-full py-3 bg-emerald-50 border border-emerald-200 rounded-xl flex-row items-center justify-center gap-2"
+                        >
+                            <Feather name="clock" size={16} color="#059669" />
+                            <Text className="text-emerald-700 font-semibold text-sm">Queue History</Text>
+                        </TouchableOpacity>
                     </View>
 
                     {/* Missed List Section */}

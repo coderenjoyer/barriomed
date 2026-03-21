@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, Text, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueueCommander } from './quequecaller';
+import { QueueHistory } from './queuehistory';
 import { InventoryMaster } from './medicine_stocks/inventory';
 import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../../lib/AuthContext';
@@ -46,6 +47,11 @@ export function StaffNavigator({ onLogout }: { onLogout: () => void }) {
                 name="Inventory"
                 component={InventoryMaster}
                 options={{ title: 'Medicine Stocks' }}
+            />
+            <Stack.Screen
+                name="QueueHistory"
+                component={QueueHistory}
+                options={{ title: 'Queue History' }}
             />
         </Stack.Navigator>
     );

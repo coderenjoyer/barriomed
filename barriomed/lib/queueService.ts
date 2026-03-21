@@ -212,10 +212,35 @@ export const queueService = {
         return (data || []).map((item: any) => ({
              id: item.ticket_id,
              queue_number: item.queue_number,
-             patient_name: item.users ? `${item.users.first_name} ${item.users.last_name}` : 'Walk-in Patient',
+             patient_name: item.users ? `${item.users.first_name} ${item.users.last_name}` : (item.patient_name || 'Walk-in Patient'),
              service_type: mapDbServiceType(item.service_type),
              status: mapDbStatusToUi(item.status),
              created_at: item.created_at
+        }));
+    },
+
+    async getQueueHistory() {
+        let query = supabase
+            .from('queue_transactions')
+            .select('*, users(first_name, last_name)')
+            .eq('status', 'COMPLETED')
+            .order('completed_at', { ascending: false })
+            .limit(50); // Get the last 50 completed records
+
+        const { data, error } = await query;
+        if (error) {
+            console.error("Queue History Fetch Error:", error);
+            throw error;
+        }
+
+        return (data || []).map((item: any) => ({
+             id: item.ticket_id,
+             queue_number: item.queue_number,
+             patient_name: item.users ? `${item.users.first_name} ${item.users.last_name}` : (item.patient_name || 'Walk-in Patient'),
+             service_type: mapDbServiceType(item.service_type),
+             status: mapDbStatusToUi(item.status),
+             created_at: item.created_at,
+             completed_at: item.completed_at
         }));
     },
 
@@ -271,6 +296,20 @@ export const queueService = {
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'queue_transactions' },
+                () => onUpdate()
+            )
+            .subscribe();
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    },
+
+    subscribeToQueueHistory(onUpdate: () => void) {
+        const channel = supabase
+            .channel('queue_history_channel')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'queue_transactions', filter: 'status=eq.COMPLETED' },
                 () => onUpdate()
             )
             .subscribe();

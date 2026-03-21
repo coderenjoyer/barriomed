@@ -94,6 +94,13 @@ export function PatientQueueItem({ patient, isNext }: PatientQueueItemProps) {
                         <Text className="text-xs font-medium text-rose-600">Missed</Text>
                     </View>
                 )
+            case 'completed':
+                return (
+                    <View className="flex-row items-center gap-1 bg-indigo-50 px-2 py-1 rounded-full border border-indigo-100">
+                        <Feather name="check" size={12} color="#4F46E5" />
+                        <Text className="text-xs font-medium text-indigo-600">Completed</Text>
+                    </View>
+                )
             default:
                 return null
         }

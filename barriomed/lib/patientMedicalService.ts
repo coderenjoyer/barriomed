@@ -86,7 +86,7 @@ async function uploadProfilePicture(userId: string, localUri: string): Promise<s
 
         // Upload (upsert to overwrite existing)
         const { error: uploadError } = await supabase.storage
-            .from('media')
+            .from('user-profile')
             .upload(filePath, fileBody, {
                 cacheControl: '3600',
                 upsert: true,
@@ -100,7 +100,7 @@ async function uploadProfilePicture(userId: string, localUri: string): Promise<s
 
         // Get the public URL
         const { data: urlData } = supabase.storage
-            .from('media')
+            .from('user-profile')
             .getPublicUrl(filePath);
 
         if (urlData?.publicUrl) {

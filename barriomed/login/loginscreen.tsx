@@ -177,14 +177,15 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
 
     // ── submit handlers ──────────────────────────────────────────────────────
 
-    const handleSignIn = async () => {
-        if (!email.trim() || pin.length < 6) {
+    const handleSignIn = async (pinOverride?: string) => {
+        const pinToUse = pinOverride ?? pin;
+        if (!email.trim() || pinToUse.length < 6) {
             setError('Please enter your email and 6-digit PIN.');
             return;
         }
         setIsLoading(true);
         setError('');
-        const result = await signIn({ email: email.trim(), password: pin });
+        const result = await signIn({ email: email.trim(), password: pinToUse });
         setIsLoading(false);
 
         if (!result.success) {
@@ -386,7 +387,18 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
             <Field
                 label={authMode === 'signIn' ? 'PIN (6 digits)' : 'Create 6-digit PIN'}
                 value={pin}
-                onChangeText={setPin}
+                onChangeText={(val) => {
+                    setPin(val);
+                    setError('');
+                    if (authMode === 'signIn' && val.length === 6) {
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (email.trim() && emailRegex.test(email.trim())) {
+                            handleSignIn(val);
+                        } else {
+                            setError('Please enter a valid email address before entering PIN.');
+                        }
+                    }
+                }}
                 placeholder="••••••"
                 secureTextEntry
                 keyboardType="numeric"
@@ -396,7 +408,7 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
-                onPress={authMode === 'signIn' ? handleSignIn : handleSignUp}
+                onPress={() => authMode === 'signIn' ? handleSignIn() : handleSignUp()}
                 disabled={isLoading}
                 activeOpacity={0.85}
                 style={[styles.primaryBtn, isLoading && styles.primaryBtnDisabled]}

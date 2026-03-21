@@ -1,164 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, StatusBar, Image, FlatList } from 'react-native';
+import React, { useMemo, useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, StatusBar, Image, FlatList, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { MedicineStockCard } from './medicinecards';
-
-// Types
-export type StockStatus = 'available' | 'limited' | 'out_of_stock';
-export interface Medicine {
-    id: string;
-    genericName: string;
-    brandName: string;
-    dosage: string;
-    category: string;
-    status: StockStatus;
-    count?: number;
-    restockDate?: string;
-    patientId?: string; // ID of the patient this medicine is prescribed for
-    prescribedDate?: string;
-}
-
-// Mock Data
-const medicines: Medicine[] = [
-    // Maintenance - Prescribed to Sarah (user-1)
-    {
-        id: '1',
-        genericName: 'Losartan',
-        brandName: 'Cozaar',
-        dosage: '50mg Tablet',
-        category: 'Maintenance',
-        status: 'out_of_stock',
-        restockDate: 'Feb 5',
-        patientId: 'user-1',
-        prescribedDate: '2024-01-15',
-    },
-    {
-        id: '2',
-        genericName: 'Metformin',
-        brandName: 'Glucophage',
-        dosage: '500mg Tablet',
-        category: 'Maintenance',
-        status: 'available',
-        patientId: 'user-1',
-        prescribedDate: '2024-01-15',
-    },
-    {
-        id: '3',
-        genericName: 'Amlodipine',
-        brandName: 'Norvasc',
-        dosage: '5mg Tablet',
-        category: 'Maintenance',
-        status: 'limited',
-        count: 15,
-        patientId: 'user-1',
-        prescribedDate: '2024-02-01',
-    },
-    // Antibiotics - Prescribed to Other User (user-2)
-    {
-        id: '4',
-        genericName: 'Amoxicillin',
-        brandName: 'Amoxil',
-        dosage: '500mg Capsule',
-        category: 'Antibiotics',
-        status: 'limited',
-        count: 20,
-        patientId: 'user-2',
-        prescribedDate: '2024-02-10',
-    },
-    // Antibiotics - Prescribed to Sarah (user-1)
-    {
-        id: '5',
-        genericName: 'Co-Amoxiclav',
-        brandName: 'Augmentin',
-        dosage: '625mg Tablet',
-        category: 'Antibiotics',
-        status: 'out_of_stock',
-        restockDate: 'Feb 8',
-        patientId: 'user-1',
-        prescribedDate: '2024-02-14',
-    },
-    // Other - Prescribed to Others
-    {
-        id: '6',
-        genericName: 'Azithromycin',
-        brandName: 'Zithromax',
-        dosage: '500mg Tablet',
-        category: 'Antibiotics',
-        status: 'available',
-        patientId: 'user-2',
-    },
-    // Vitamins - Prescribed to Sarah
-    {
-        id: '7',
-        genericName: 'Ascorbic Acid',
-        brandName: 'Vitamin C',
-        dosage: '500mg Tablet',
-        category: 'Vitamins',
-        status: 'available',
-        patientId: 'user-1',
-        prescribedDate: '2024-01-01',
-    },
-    // Others
-    {
-        id: '8',
-        genericName: 'Ferrous Sulfate',
-        brandName: 'Iron',
-        dosage: '325mg Tablet',
-        category: 'Vitamins',
-        status: 'available',
-        patientId: 'user-2',
-    },
-    {
-        id: '9',
-        genericName: 'Multivitamins',
-        brandName: 'Centrum',
-        dosage: 'Tablet',
-        category: 'Vitamins',
-        status: 'limited',
-        count: 30,
-        patientId: 'user-1',
-        prescribedDate: '2024-01-01',
-    },
-    // First Aid - Mix
-    {
-        id: '10',
-        genericName: 'Povidone Iodine',
-        brandName: 'Betadine',
-        dosage: '10% Solution',
-        category: 'First Aid',
-        status: 'available',
-        patientId: 'user-2',
-    },
-    {
-        id: '11',
-        genericName: 'Paracetamol',
-        brandName: 'Biogesic',
-        dosage: '500mg Tablet',
-        category: 'First Aid',
-        status: 'available',
-        patientId: 'user-1', // Often prescribed or OTC, assigning to user for demo
-        prescribedDate: '2024-02-15',
-    },
-    {
-        id: '12',
-        genericName: 'Mefenamic Acid',
-        brandName: 'Ponstan',
-        dosage: '500mg Tablet',
-        category: 'First Aid',
-        status: 'limited',
-        count: 10,
-        patientId: 'user-2',
-    },
-];
-
-const categories = [
-    'All',
-    'Maintenance',
-    'Antibiotics',
-    'Vitamins',
-    'First Aid',
-];
+import { inventoryService, InventoryItem } from '../../lib/inventoryService';
 
 interface BotikaPageProps {
     userId?: string;
@@ -168,25 +13,65 @@ interface BotikaPageProps {
 export function BotikaPage({ userId = 'user-1', scrollEnabled = true }: BotikaPageProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeCategory, setActiveCategory] = useState('All');
+    const [medicines, setMedicines] = useState<InventoryItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isOffline, setIsOffline] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
-    const userInfoMedicines = useMemo(() => {
-        return medicines.filter(med => med.patientId === userId);
-    }, [userId]);
+    useEffect(() => {
+        loadData();
+
+        const unsubscribe = inventoryService.subscribeToInventoryChanges(() => {
+            loadData();
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, []);
+
+    const loadData = async () => {
+        setLoading(true);
+        const { data, lastUpdated, offline } = await inventoryService.fetchInventory();
+        
+        // Ensure data is structured properly if we modified the interface slightly
+        const mappedData = data.map(m => ({ ...m, genericName: m.generic_name }));
+        
+        setMedicines(mappedData);
+        setIsOffline(offline);
+        setLastUpdated(lastUpdated);
+        setLoading(false);
+    };
+
+    // Extract categories dynamically from the data, plus "All"
+    const categories = useMemo(() => {
+        const cats = new Set(medicines.map(m => m.category));
+        return ['All', ...Array.from(cats)].sort();
+    }, [medicines]);
 
     const filteredMedicines = useMemo(() => {
-        return userInfoMedicines.filter((med) => {
+        return medicines.filter((med) => {
+            const generic = med.generic_name || '';
+            const brand = med.brand_name || '';
+            const query = searchQuery.toLowerCase();
             const matchesSearch =
-                med.genericName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                med.brandName.toLowerCase().includes(searchQuery.toLowerCase());
+                generic.toLowerCase().includes(query) ||
+                brand.toLowerCase().includes(query);
             const matchesCategory =
                 activeCategory === 'All' || med.category === activeCategory;
             return matchesSearch && matchesCategory;
         });
-    }, [searchQuery, activeCategory, userInfoMedicines]);
+    }, [searchQuery, activeCategory, medicines]);
 
     const getCategoryCount = (category: string) => {
-        if (category === 'All') return userInfoMedicines.length;
-        return userInfoMedicines.filter((m) => m.category === category).length;
+        if (category === 'All') return medicines.length;
+        return medicines.filter((m) => m.category === category).length;
+    };
+
+    const formatTime = (ts: string | null) => {
+        if (!ts) return '';
+        const date = new Date(ts);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' }) + ' ' + date.toLocaleDateString();
     };
 
     const EmptyState = () => (
@@ -215,6 +100,15 @@ export function BotikaPage({ userId = 'user-1', scrollEnabled = true }: BotikaPa
                     </View>
                 </View>
 
+                {isOffline && lastUpdated && (
+                    <View style={{ backgroundColor: '#FFFBEB', padding: 8, borderRadius: 8, marginBottom: 16, flexDirection: 'row', alignItems: 'center' }}>
+                        <Feather name="wifi-off" size={16} color="#B45309" style={{ marginRight: 8 }} />
+                        <Text style={{ color: '#B45309', fontSize: 12 }}>
+                            Offline. Displaying stock status as of {formatTime(lastUpdated)}
+                        </Text>
+                    </View>
+                )}
+
                 {/* Search Bar */}
                 <View style={styles.searchContainer}>
                     <Feather name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
@@ -222,7 +116,7 @@ export function BotikaPage({ userId = 'user-1', scrollEnabled = true }: BotikaPa
                         style={styles.searchInput}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
-                        placeholder="Search medicine (e.g., Biogesic)"
+                        placeholder="Search generic or brand..."
                         placeholderTextColor="#9CA3AF"
                     />
                     {searchQuery.length > 0 && (
@@ -260,7 +154,7 @@ export function BotikaPage({ userId = 'user-1', scrollEnabled = true }: BotikaPa
                             >
                                 {category}
                             </Text>
-                            <View style={[ // Badge for count
+                            <View style={[
                                 styles.categoryBadge,
                                 activeCategory === category ? styles.categoryBadgeActive : styles.categoryBadgeInactive
                             ]}>
@@ -277,10 +171,14 @@ export function BotikaPage({ userId = 'user-1', scrollEnabled = true }: BotikaPa
             </View>
 
             {/* Medicine List */}
-            {scrollEnabled ? (
+            {loading ? (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <ActivityIndicator size="large" color="#0D9488" />
+                </View>
+            ) : scrollEnabled ? (
                 <FlatList
                     data={filteredMedicines}
-                    keyExtractor={(item) => item.id}
+                    keyExtractor={(item) => item.item_id}
                     renderItem={({ item, index }) => (
                         <MedicineStockCard medicine={item} index={index} />
                     )}
@@ -291,7 +189,7 @@ export function BotikaPage({ userId = 'user-1', scrollEnabled = true }: BotikaPa
                 <View style={styles.listContent}>
                     {filteredMedicines.length > 0 ? (
                         filteredMedicines.map((item, index) => (
-                            <MedicineStockCard key={item.id} medicine={item} index={index} />
+                            <MedicineStockCard key={item.item_id} medicine={item} index={index} />
                         ))
                     ) : (
                         <EmptyState />
@@ -422,7 +320,7 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: 24,
-        paddingBottom: 100, // Space for bottom content if needed
+        paddingBottom: 100,
     },
     emptyContainer: {
         alignItems: 'center',

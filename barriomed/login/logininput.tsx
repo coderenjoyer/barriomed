@@ -1,71 +1,67 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useAuth } from '../lib/AuthContext';
 
 export interface LoginFormData {
-    firstName: string;
-    lastName: string;
     email: string;
-    phone: string;
     pin: string;
 }
 
 interface LoginFormProps {
-    onSubmit: (data: LoginFormData) => void;
-    isLoading?: boolean;
+    onLoginSuccess?: (role: string) => void;
 }
 
-export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
+export function LoginForm({ onLoginSuccess }: LoginFormProps) {
+    const { signIn } = useAuth();
     const [email, setEmail] = useState('');
-    const [phone, setPhone] = useState('');
     const [pin, setPin] = useState('');
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
 
-    const formatPhoneNumber = (input: string) => {
-        const cleaned = input.replace(/\D/g, '');
-        const truncated = cleaned.slice(0, 11);
-        if (truncated.length > 6) {
-            return `${truncated.slice(0, 3)} ${truncated.slice(3, 6)} ${truncated.slice(6)}`;
-        } else if (truncated.length > 3) {
-            return `${truncated.slice(0, 3)} ${truncated.slice(3)}`;
-        }
-        return truncated;
-    };
-
-    const handlePhoneChange = (text: string) => {
-        const formatted = formatPhoneNumber(text);
-        setPhone(formatted);
-        if (error) setError('');
-    };
-
-    const handleSubmit = () => {
-        const rawPhone = phone.replace(/\s/g, '');
-        if (!firstName.trim()) {
-            setError('Please enter your first name');
+    const handleLogin = async (pinOverride?: string) => {
+        const pinToUse = pinOverride ?? pin;
+        if (!email.trim() || pinToUse.length < 6) {
+            setError('Please enter your email and 6-digit PIN');
             return;
         }
-        if (!lastName.trim()) {
-            setError('Please enter your last name');
-            return;
-        }
-        if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email.trim())) {
             setError('Please enter a valid email address');
             return;
         }
-        if (rawPhone.length < 11) {
-            setError('Please enter a valid mobile number');
-            return;
+
+        setIsLoading(true);
+        setError('');
+        
+        const result = await signIn({ email: email.trim(), password: pinToUse });
+        
+        setIsLoading(false);
+        
+        if (result.success) {
+            onLoginSuccess?.((result.uiRole as string) ?? 'patient');
+        } else {
+            setError(result.error ?? 'Invalid email or PIN. Please try again.');
         }
-        if (pin.length < 6) {
-            setError('Please enter a valid PIN');
-            return;
-        }
-        onSubmit({ firstName: firstName.trim(), lastName: lastName.trim(), email: email.trim(), phone: rawPhone, pin });
     };
 
-    const isFormValid = firstName.trim().length > 0 && lastName.trim().length > 0 && email.trim().length > 0 && phone.replace(/\s/g, '').length === 11 && pin.length >= 6;
+    const handlePinChange = (text: string) => {
+        setPin(text);
+        if (error) setError('');
+        
+        // Auto login when PIN reaches 6 characters
+        if (text.length === 6) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (email.trim() && emailRegex.test(email.trim())) {
+                handleLogin(text);
+            } else {
+                setError('Please enter a valid email address before entering PIN');
+            }
+        }
+    };
+
+    const isFormValid = email.trim().length > 0 && pin.length >= 6;
 
     return (
         <View style={styles.container}>
@@ -73,33 +69,11 @@ export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
                 <View style={styles.iconContainer}>
                     <Feather name="log-in" size={32} color="#0D9488" />
                 </View>
-                <Text style={styles.title}>Welcome</Text>
+                <Text style={styles.title}>Welcome Back</Text>
                 <Text style={styles.subtitle}>Enter your details to log in</Text>
             </View>
 
             <View style={styles.inputSection}>
-                <View style={styles.inputWrapper}>
-                    <Text style={styles.label}>First Name</Text>
-                    <TextInput
-                        value={firstName}
-                        onChangeText={(t) => { setFirstName(t); setError(''); }}
-                        placeholder="Juan"
-                        placeholderTextColor="#D1D5DB"
-                        style={styles.standardInput}
-                    />
-                </View>
-
-                <View style={styles.inputWrapper}>
-                    <Text style={styles.label}>Last Name</Text>
-                    <TextInput
-                        value={lastName}
-                        onChangeText={(t) => { setLastName(t); setError(''); }}
-                        placeholder="Dela Cruz"
-                        placeholderTextColor="#D1D5DB"
-                        style={styles.standardInput}
-                    />
-                </View>
-
                 <View style={styles.inputWrapper}>
                     <Text style={styles.label}>Email Address</Text>
                     <TextInput
@@ -110,37 +84,22 @@ export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
                         placeholder="juandelacruz@example.com"
                         placeholderTextColor="#D1D5DB"
                         style={styles.standardInput}
+                        editable={!isLoading}
                     />
-                </View>
-
-                <View style={styles.inputWrapper}>
-                    <Text style={styles.label}>Mobile Number</Text>
-                    <View style={styles.phoneInputContainer}>
-                        <View style={styles.prefixContainer}>
-                            <Text style={styles.prefixText}>+63</Text>
-                        </View>
-                        <TextInput
-                            keyboardType="phone-pad"
-                            value={phone}
-                            onChangeText={handlePhoneChange}
-                            placeholder="912 345 6789"
-                            placeholderTextColor="#D1D5DB"
-                            style={styles.input}
-                        />
-                    </View>
                 </View>
 
                 <View style={styles.inputWrapper}>
                     <Text style={styles.label}>PIN</Text>
                     <TextInput
                         value={pin}
-                        onChangeText={(t) => { setPin(t); setError(''); }}
+                        onChangeText={handlePinChange}
                         placeholder="••••••"
                         placeholderTextColor="#D1D5DB"
                         secureTextEntry
                         keyboardType="numeric"
                         maxLength={6}
                         style={styles.standardInput}
+                        editable={!isLoading}
                     />
                 </View>
 
@@ -150,7 +109,7 @@ export function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
             </View>
 
             <TouchableOpacity
-                onPress={handleSubmit}
+                onPress={() => handleLogin()}
                 disabled={isLoading || !isFormValid}
                 style={[
                     styles.submitButton,
@@ -220,33 +179,6 @@ const styles = StyleSheet.create({
         borderColor: '#E5E7EB',
         borderRadius: 16,
         height: 56,
-        paddingHorizontal: 16,
-        fontSize: 16,
-        color: '#111827',
-    },
-    phoneInputContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        borderRadius: 16,
-        overflow: 'hidden',
-        height: 56,
-    },
-    prefixContainer: {
-        backgroundColor: '#F9FAFB',
-        borderRightWidth: 1,
-        borderRightColor: '#F3F4F6',
-        paddingHorizontal: 16,
-        justifyContent: 'center',
-    },
-    prefixText: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#6B7280',
-    },
-    input: {
-        flex: 1,
         paddingHorizontal: 16,
         fontSize: 16,
         color: '#111827',

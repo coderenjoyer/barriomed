@@ -5,6 +5,7 @@ import { Feather } from '@expo/vector-icons'
 import { PatientQueueItem, Patient } from './patientqueuecall'
 import { queueService, QueueStatus } from '../../lib/queueService'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../lib/AuthContext'
 import { ServiceType } from '../patient/selectservice'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -13,6 +14,18 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 export function QueueCommander() {
     const navigation = useNavigation()
+    const { userProfile, session } = useAuth()
+    
+    // Auth mappings
+    const myStaffId = userProfile?.id ?? session?.user?.id ?? 'unknown'
+    const myFirstName = userProfile?.first_name ?? session?.user?.user_metadata?.first_name ?? ''
+    const myLastName  = userProfile?.last_name  ?? session?.user?.user_metadata?.last_name  ?? ''
+    const myStaffName = [myFirstName, myLastName].filter(Boolean).join(' ') || 'Health Staff'
+
+    // Realtime Presence States
+    const [activeController, setActiveController] = useState<{ id: string, name: string } | null>(null)
+    const [presenceChannel, setPresenceChannel] = useState<any>(null)
+
     const [patients, setPatients] = useState<Patient[]>([])
     const [missedPatients, setMissedPatients] = useState<Patient[]>([])
     const [showMissed, setShowMissed] = useState(false)
@@ -67,10 +80,48 @@ export function QueueCommander() {
     useEffect(() => {
         fetchQueue();
 
-        // Listen to active realtime changes
+        // Listen to active realtime queue changes
         const unsubscribeQueue = queueService.subscribeToStaffQueue(() => {
             fetchQueue();
         });
+
+        // -------------------------------------------------------------
+        // Setup Realtime Presence for Controller Lock
+        // -------------------------------------------------------------
+        const channel = supabase.channel('queue_controller_presence', {
+            config: {
+                presence: { key: myStaffId }
+            }
+        });
+
+        channel.on('presence', { event: 'sync' }, () => {
+            const state = channel.presenceState();
+            let allUsers: any[] = [];
+            for (const id in state) {
+                allUsers = [...allUsers, ...state[id]];
+            }
+
+            const controllers = allUsers.filter(u => u.requestedLockAt !== null);
+            if (controllers.length > 0) {
+                controllers.sort((a, b) => a.requestedLockAt - b.requestedLockAt);
+                setActiveController({ id: controllers[0].id, name: controllers[0].name });
+            } else {
+                setActiveController(null);
+            }
+        });
+
+        channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+                await channel.track({
+                    id: myStaffId,
+                    name: myStaffName,
+                    requestedLockAt: null
+                });
+            }
+        });
+
+        setPresenceChannel(channel);
+        // -------------------------------------------------------------
 
         // Listen for session stabilizations after logins to prevent RLS hiding active rows
         const { data: authListener } = supabase.auth.onAuthStateChange((event: any, session: any) => {
@@ -82,8 +133,31 @@ export function QueueCommander() {
         return () => {
             unsubscribeQueue();
             authListener.subscription.unsubscribe();
+            channel.unsubscribe();
         }
-    }, [fetchQueue]);
+    }, [fetchQueue, myStaffId, myStaffName]);
+
+    const isController = activeController?.id === myStaffId;
+
+    const requestControl = async () => {
+        if (presenceChannel) {
+            await presenceChannel.track({
+                id: myStaffId,
+                name: myStaffName,
+                requestedLockAt: Date.now()
+            });
+        }
+    };
+
+    const releaseControl = async () => {
+        if (presenceChannel) {
+            await presenceChannel.track({
+                id: myStaffId,
+                name: myStaffName,
+                requestedLockAt: null
+            });
+        }
+    };
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);
@@ -273,8 +347,8 @@ export function QueueCommander() {
                                     <View className="flex-row gap-3 mt-2">
                                         <TouchableOpacity
                                             onPress={handleCompleted}
-                                            disabled={isActionLoading}
-                                            className="flex-1 py-3 bg-white/20 rounded-2xl flex-row items-center justify-center gap-2 border border-white/30"
+                                            disabled={isActionLoading || !isController}
+                                            className={`flex-1 py-3 rounded-2xl flex-row items-center justify-center gap-2 border ${(!isController) ? 'bg-white/10 border-white/10 opacity-50' : 'bg-white/20 border-white/30'}`}
                                         >
                                             {isActionLoading ? (
                                                 <ActivityIndicator color="white" size="small" />
@@ -286,8 +360,8 @@ export function QueueCommander() {
 
                                         <TouchableOpacity
                                             onPress={handleNoShow}
-                                            disabled={isActionLoading}
-                                            className="py-3 px-5 bg-white/10 rounded-2xl flex-row items-center justify-center gap-2 border border-white/20"
+                                            disabled={isActionLoading || !isController}
+                                            className={`py-3 px-5 rounded-2xl flex-row items-center justify-center gap-2 border ${(!isController) ? 'bg-white/5 border-white/5 opacity-50' : 'bg-white/10 border-white/20'}`}
                                         >
                                             <Feather name="user-x" size={18} color="white" />
                                             <Text className="text-white font-bold text-sm">NO SHOW</Text>
@@ -346,20 +420,51 @@ export function QueueCommander() {
                 {/* RIGHT PANEL - ACTIONS */}
                 <View className="w-full flex-col gap-6 lg:w-[400px]">
                     <View className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex-col gap-4">
-                        <Text className="font-bold text-gray-900 mb-2 text-lg">Queue Controls</Text>
+                        <View className="flex-col gap-2 mb-2">
+                             <View className="flex-row items-center justify-between">
+                                 <Text className="font-bold text-gray-900 text-lg">Queue Controls</Text>
+                                 <View className={`px-2 py-1 rounded-full border ${isController ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                                     <Text className={`text-[10px] font-bold uppercase tracking-wider ${isController ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                         {isController ? 'Controller Mode' : 'View Only'}
+                                     </Text>
+                                 </View>
+                             </View>
+
+                             {!isController ? (
+                                 <View className="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex-col gap-3 mt-1">
+                                     <Text className="text-gray-600 text-xs font-medium text-center">
+                                         {activeController ? `${activeController.name} is currently managing the queue.` : 'No one is managing the queue right now.'}
+                                     </Text>
+                                     <TouchableOpacity 
+                                          onPress={requestControl}
+                                          className="w-full py-2.5 bg-teal-600 rounded-xl flex-row justify-center items-center gap-2"
+                                     >
+                                          <Feather name="lock" size={14} color="white" />
+                                          <Text className="text-white font-bold text-sm">Take Control</Text>
+                                     </TouchableOpacity>
+                                 </View>
+                             ) : (
+                                 <View className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex-row justify-between items-center mt-1 mb-2">
+                                     <Text className="text-emerald-800 text-xs font-semibold">You hold the queue lock</Text>
+                                     <TouchableOpacity onPress={releaseControl} className="bg-white px-2 py-1 rounded-lg border border-emerald-200">
+                                         <Text className="text-emerald-700 text-[10px] font-bold uppercase">Release</Text>
+                                     </TouchableOpacity>
+                                 </View>
+                             )}
+                        </View>
 
                         {/* Call Next Button - Primary action */}
                         <TouchableOpacity
                             onPress={handleCallNext}
-                            disabled={isActionLoading}
-                            className={`w-full py-5 rounded-2xl shadow-lg flex-row items-center justify-center gap-3 ${isActionLoading ? 'bg-teal-400' : 'bg-teal-600'}`}
+                            disabled={isActionLoading || !isController}
+                            className={`w-full py-5 rounded-2xl shadow-lg flex-row items-center justify-center gap-3 ${(!isController) ? 'bg-gray-300 opacity-80' : (isActionLoading ? 'bg-teal-400' : 'bg-teal-600')}`}
                         >
                             {isActionLoading ? (
                                 <ActivityIndicator color="white" />
                             ) : (
-                                <Feather name="mic" size={24} color="white" />
+                                <Feather name="mic" size={24} color={!isController ? "#6B7280" : "white"} />
                             )}
-                            <Text className="text-white font-bold text-lg">CALL NEXT</Text>
+                            <Text className={`font-bold text-lg ${!isController ? 'text-gray-600' : 'text-white'}`}>CALL NEXT</Text>
                         </TouchableOpacity>
 
                         {/* Preview of who is next */}
@@ -382,20 +487,22 @@ export function QueueCommander() {
                         {currentPatient && nextPatient && (
                             <TouchableOpacity
                                 onPress={handleCompleteAndCallNext}
-                                disabled={isActionLoading}
-                                className={`w-full py-4 rounded-2xl flex-row items-center justify-center gap-2 border-2 ${isActionLoading ? 'border-emerald-200 bg-emerald-50' : 'border-emerald-300 bg-emerald-50'
-                                    }`}
+                                disabled={isActionLoading || !isController}
+                                className={`w-full py-4 rounded-2xl flex-row items-center justify-center gap-2 border-2 ${
+                                    !isController ? 'border-gray-200 bg-gray-50 opacity-60' : 
+                                    (isActionLoading ? 'border-emerald-200 bg-emerald-50' : 'border-emerald-300 bg-emerald-50')
+                                }`}
                             >
                                 {isActionLoading ? (
-                                    <ActivityIndicator color="#059669" size="small" />
+                                    <ActivityIndicator color={!isController ? "#9CA3AF" : "#059669"} size="small" />
                                 ) : (
                                     <>
-                                        <Feather name="check-circle" size={18} color="#059669" />
-                                        <Feather name="arrow-right" size={14} color="#059669" />
-                                        <Feather name="mic" size={18} color="#059669" />
+                                        <Feather name="check-circle" size={18} color={!isController ? "#9CA3AF" : "#059669"} />
+                                        <Feather name="arrow-right" size={14} color={!isController ? "#9CA3AF" : "#059669"} />
+                                        <Feather name="mic" size={18} color={!isController ? "#9CA3AF" : "#059669"} />
                                     </>
                                 )}
-                                <Text className="text-emerald-700 font-bold text-sm">COMPLETE & CALL NEXT</Text>
+                                <Text className={`font-bold text-sm ${!isController ? 'text-gray-400' : 'text-emerald-700'}`}>COMPLETE & CALL NEXT</Text>
                             </TouchableOpacity>
                         )}
 
@@ -403,10 +510,11 @@ export function QueueCommander() {
 
                         <TouchableOpacity
                             onPress={() => setWalkInModalVisible(true)}
-                            className="w-full py-3 bg-gray-50 border border-gray-200 rounded-xl flex-row items-center justify-center gap-2"
+                            disabled={!isController}
+                            className={`w-full py-3 rounded-xl flex-row items-center justify-center gap-2 border ${!isController ? 'bg-gray-100 border-gray-200 opacity-60' : 'bg-gray-50 border-gray-200'}`}
                         >
-                            <Feather name="user-plus" size={16} color="#374151" />
-                            <Text className="text-gray-700 font-semibold text-sm">Insert Walk-In</Text>
+                            <Feather name="user-plus" size={16} color={!isController ? "#9CA3AF" : "#374151"} />
+                            <Text className={`font-semibold text-sm ${!isController ? 'text-gray-400' : 'text-gray-700'}`}>Insert Walk-In</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
@@ -464,8 +572,11 @@ export function QueueCommander() {
                                                     {p.name}
                                                 </Text>
                                             </View>
-                                            <TouchableOpacity onPress={() => handleReinsert(p.id)}>
-                                                <Text className="text-xs font-bold text-teal-600">Re-insert</Text>
+                                            <TouchableOpacity 
+                                                onPress={() => handleReinsert(p.id)}
+                                                disabled={!isController}
+                                            >
+                                                <Text className={`text-xs font-bold ${!isController ? 'text-gray-400' : 'text-teal-600'}`}>Re-insert</Text>
                                             </TouchableOpacity>
                                         </View>
                                     ))
@@ -523,11 +634,11 @@ export function QueueCommander() {
 
                         <TouchableOpacity
                             onPress={handleAddWalkIn}
-                            disabled={isActionLoading}
-                            className={`w-full py-4 rounded-xl flex-row items-center justify-center gap-2 ${isActionLoading ? 'bg-teal-400' : 'bg-teal-600'}`}
+                            disabled={isActionLoading || !isController}
+                            className={`w-full py-4 rounded-xl flex-row items-center justify-center gap-2 ${!isController ? 'bg-gray-300' : (isActionLoading ? 'bg-teal-400' : 'bg-teal-600')}`}
                         >
                             {isActionLoading && <ActivityIndicator color="white" />}
-                            <Text className="text-white font-bold text-lg">REGISTER PATIENT</Text>
+                            <Text className={`font-bold text-lg ${!isController ? 'text-gray-500' : 'text-white'}`}>REGISTER PATIENT</Text>
                         </TouchableOpacity>
                     </View>
                 </View>

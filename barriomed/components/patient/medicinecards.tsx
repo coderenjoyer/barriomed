@@ -1,22 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
-import { FontAwesome5, Feather } from '@expo/vector-icons';
-
-export type StockStatus = 'available' | 'limited' | 'out_of_stock';
-
-export interface Medicine {
-    id: string;
-    genericName: string;
-    brandName: string;
-    dosage: string;
-    category: string;
-    status: StockStatus;
-    count?: number;
-    restockDate?: string;
-}
+import { FontAwesome5 } from '@expo/vector-icons';
+import { InventoryItem, StockStatus } from '../../lib/inventoryService';
 
 interface MedicineStockCardProps {
-    medicine: Medicine;
+    medicine: InventoryItem;
     index: number;
 }
 
@@ -43,7 +31,7 @@ export function MedicineStockCard({ medicine, index }: MedicineStockCardProps) {
 
     const getStatusConfig = (status: StockStatus) => {
         switch (status) {
-            case 'available':
+            case 'AVAILABLE':
                 return {
                     bg: '#ECFDF5', // emerald-50
                     border: '#D1FAE5', // emerald-100
@@ -51,26 +39,34 @@ export function MedicineStockCard({ medicine, index }: MedicineStockCardProps) {
                     dot: '#10B981', // emerald-500
                     label: 'Available',
                 };
-            case 'limited':
+            case 'LOW':
                 return {
                     bg: '#FFFBEB', // amber-50
                     border: '#FEF3C7', // amber-100
                     text: '#B45309', // amber-700
                     dot: '#F59E0B', // amber-500
-                    label: `Limited Stock - ${medicine.count} left`,
+                    label: `Limited Stock - Low`,
                 };
-            case 'out_of_stock':
+            case 'OUT_OF_STOCK':
                 return {
                     bg: '#FFF1F2', // rose-50
                     border: '#FFE4E6', // rose-100
                     text: '#BE123C', // rose-700
                     dot: '#F43F5E', // rose-500
-                    label: `Out of Stock - Restock: ${medicine.restockDate}`,
+                    label: `Out of Stock`,
+                };
+            default:
+                return {
+                    bg: '#F3F4F6',
+                    border: '#E5E7EB',
+                    text: '#4B5563',
+                    dot: '#9CA3AF',
+                    label: `Unknown`,
                 };
         }
     };
 
-    const config = getStatusConfig(medicine.status);
+    const config = getStatusConfig(medicine.stock_status);
 
     return (
         <Animated.View
@@ -84,10 +80,12 @@ export function MedicineStockCard({ medicine, index }: MedicineStockCardProps) {
         >
             <View style={styles.contentRow}>
                 <View style={styles.textContainer}>
-                    <Text style={styles.genericName}>{medicine.genericName}</Text>
-                    <Text style={styles.brandName}>
-                        {medicine.brandName} • {medicine.dosage}
-                    </Text>
+                    <Text style={styles.genericName}>{medicine.generic_name}</Text>
+                    {medicine.brand_name ? (
+                        <Text style={styles.brandName}>
+                            {medicine.brand_name}
+                        </Text>
+                    ) : null}
                 </View>
                 <View style={styles.iconContainer}>
                     <FontAwesome5 name="pills" size={20} color="#0D9488" />

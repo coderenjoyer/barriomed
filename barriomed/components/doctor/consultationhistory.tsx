@@ -9,26 +9,21 @@ import {
     Platform,
     UIManager,
 } from 'react-native'
-import { Calendar, User, ChevronDown, ChevronUp, FileText } from 'lucide-react-native'
+import { Calendar, User, ChevronDown, ChevronUp, FileText, Pill } from 'lucide-react-native'
+import type { ConsultationRecord } from '../../lib/medicalRecordsService'
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true)
 }
 
-export interface ConsultationRecord {
-    id: string
-    date: string
-    doctor: string
-    diagnosis: string
-    notes: string
-}
-
 interface ConsultationHistoryProps {
     history: ConsultationRecord[]
+    /** If true, shows patient name rather than doctor name (doctor's own history view) */
+    showPatientName?: boolean
 }
 
-export function ConsultationHistory({ history }: ConsultationHistoryProps) {
+export function ConsultationHistory({ history, showPatientName = false }: ConsultationHistoryProps) {
     const [expandedId, setExpandedId] = useState<string | null>(null)
 
     const handleToggle = (id: string) => {
@@ -36,12 +31,29 @@ export function ConsultationHistory({ history }: ConsultationHistoryProps) {
         setExpandedId(expandedId === id ? null : id)
     }
 
+    const formatTimestamp = (ts: string) => {
+        try {
+            return new Date(ts).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+            })
+        } catch {
+            return ts
+        }
+    }
+
     return (
         <View style={styles.card}>
             {/* Header */}
             <View style={styles.headerRow}>
-                <FileText size={20} color="#0d9488" />
+                <FileText size={20} color="#0D9488" />
                 <Text style={styles.title}>Consultation History</Text>
+                {history.length > 0 && (
+                    <View style={styles.countBadge}>
+                        <Text style={styles.countBadgeText}>{history.length}</Text>
+                    </View>
+                )}
             </View>
 
             <ScrollView
@@ -50,12 +62,13 @@ export function ConsultationHistory({ history }: ConsultationHistoryProps) {
             >
                 {history.length === 0 ? (
                     <View style={styles.emptyState}>
+                        <FileText size={36} color="#E5E7EB" />
+                        <Text style={styles.emptyTitle}>No consultations yet</Text>
                         <Text style={styles.emptyText}>No previous consultation records.</Text>
                     </View>
                 ) : (
                     history.map((record, index) => (
                         <View key={record.id} style={styles.timelineItem}>
-
                             {/* Timeline line */}
                             {index !== history.length - 1 && (
                                 <View style={styles.timelineLine} />
@@ -75,25 +88,38 @@ export function ConsultationHistory({ history }: ConsultationHistoryProps) {
                                 >
                                     <View style={styles.recordMeta}>
                                         <View style={styles.metaRow}>
-                                            <Calendar size={12} color="#9ca3af" />
-                                            <Text style={styles.metaText}>{record.date}</Text>
+                                            <Calendar size={12} color="#9CA3AF" />
+                                            <Text style={styles.metaText}>{formatTimestamp(record.timestamp)}</Text>
                                             <Text style={styles.metaDot}>•</Text>
-                                            <User size={12} color="#9ca3af" />
-                                            <Text style={styles.metaText}>{record.doctor}</Text>
+                                            <User size={12} color="#9CA3AF" />
+                                            <Text style={styles.metaText} numberOfLines={1}>
+                                                {showPatientName
+                                                    ? (record.patient_name ?? 'Unknown Patient')
+                                                    : (record.doctor_name ?? 'Unknown Doctor')}
+                                            </Text>
                                         </View>
                                         <Text style={styles.diagnosis}>{record.diagnosis}</Text>
+                                        {record.prescription_id && (
+                                            <View style={styles.prescriptionBadge}>
+                                                <Pill size={10} color="#0D9488" />
+                                                <Text style={styles.prescriptionBadgeText}>Prescription attached</Text>
+                                            </View>
+                                        )}
                                     </View>
                                     {expandedId === record.id ? (
-                                        <ChevronUp size={16} color="#9ca3af" />
+                                        <ChevronUp size={16} color="#9CA3AF" />
                                     ) : (
-                                        <ChevronDown size={16} color="#9ca3af" />
+                                        <ChevronDown size={16} color="#9CA3AF" />
                                     )}
                                 </TouchableOpacity>
 
                                 {/* Expanded notes */}
                                 {expandedId === record.id && (
                                     <View style={styles.notesContainer}>
-                                        <Text style={styles.notesText}>{record.notes}</Text>
+                                        <Text style={styles.notesLabel}>NOTES</Text>
+                                        <Text style={styles.notesText}>
+                                            {record.notes || 'No notes recorded for this consultation.'}
+                                        </Text>
                                     </View>
                                 )}
                             </View>
@@ -111,12 +137,12 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         padding: 24,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.06,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+        elevation: 3,
         borderWidth: 1,
-        borderColor: '#f3f4f6',
+        borderColor: '#F3F4F6',
         flex: 1,
     },
 
@@ -124,14 +150,26 @@ const styles = StyleSheet.create({
     headerRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: 16,
+        gap: 10,
+        marginBottom: 20,
     },
     title: {
-        fontSize: 17,
-        fontWeight: '700',
+        fontSize: 18,
+        fontWeight: '800',
         color: '#111827',
-        marginLeft: 6,
+        letterSpacing: -0.3,
+        flex: 1,
+    },
+    countBadge: {
+        backgroundColor: '#CCFBF1',
+        borderRadius: 10,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+    },
+    countBadgeText: {
+        fontSize: 12,
+        fontWeight: '800',
+        color: '#0D9488',
     },
 
     scrollContent: {
@@ -140,17 +178,17 @@ const styles = StyleSheet.create({
 
     // Timeline
     timelineItem: {
-        paddingLeft: 28,
-        marginBottom: 16,
+        paddingLeft: 32,
+        marginBottom: 20,
         position: 'relative',
     },
     timelineLine: {
         position: 'absolute',
         left: 11,
-        top: 24,
-        bottom: 0,
+        top: 28,
+        bottom: -20,
         width: 2,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: '#F3F4F6',
     },
     timelineDotWrapper: {
         position: 'absolute',
@@ -159,31 +197,31 @@ const styles = StyleSheet.create({
         width: 24,
         height: 24,
         borderRadius: 12,
-        backgroundColor: '#ccfbf1',
+        backgroundColor: '#CCFBF1',
         borderWidth: 2,
         borderColor: '#ffffff',
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 2,
-        elevation: 1,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 2,
         zIndex: 10,
     },
     timelineDotInner: {
         width: 8,
         height: 8,
         borderRadius: 4,
-        backgroundColor: '#14b8a6',
+        backgroundColor: '#0D9488',
     },
 
     // Record card
     recordCard: {
-        backgroundColor: '#f9fafb',
-        borderRadius: 12,
+        backgroundColor: '#F9FAFB',
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#f3f4f6',
+        borderColor: '#E5E7EB',
         overflow: 'hidden',
     },
     recordHeader: {
@@ -199,45 +237,77 @@ const styles = StyleSheet.create({
     metaRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        marginBottom: 4,
+        gap: 6,
+        marginBottom: 6,
+        flexWrap: 'wrap',
     },
     metaText: {
-        fontSize: 11,
-        color: '#6b7280',
-        marginLeft: 2,
+        fontSize: 12,
+        color: '#6B7280',
+        fontWeight: '500',
     },
     metaDot: {
-        fontSize: 11,
-        color: '#6b7280',
+        fontSize: 12,
+        color: '#D1D5DB',
         marginHorizontal: 2,
     },
     diagnosis: {
-        fontSize: 13,
+        fontSize: 15,
         fontWeight: '700',
         color: '#111827',
+        marginBottom: 6,
+    },
+    prescriptionBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 5,
+        backgroundColor: '#F0FDFA',
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        alignSelf: 'flex-start',
+        borderWidth: 1,
+        borderColor: '#CCFBF1',
+    },
+    prescriptionBadgeText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#0D9488',
     },
 
     // Expanded notes
     notesContainer: {
         borderTopWidth: 1,
-        borderTopColor: '#e5e7eb',
+        borderTopColor: '#E5E7EB',
         backgroundColor: '#ffffff',
         padding: 16,
     },
+    notesLabel: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#9CA3AF',
+        letterSpacing: 0.8,
+        marginBottom: 8,
+    },
     notesText: {
-        fontSize: 13,
-        color: '#4b5563',
-        lineHeight: 20,
+        fontSize: 14,
+        color: '#4B5563',
+        lineHeight: 22,
     },
 
     // Empty state
     emptyState: {
         alignItems: 'center',
-        paddingVertical: 32,
+        paddingVertical: 48,
+        gap: 8,
+    },
+    emptyTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#374151',
     },
     emptyText: {
-        fontSize: 13,
-        color: '#9ca3af',
+        fontSize: 14,
+        color: '#9CA3AF',
     },
 })

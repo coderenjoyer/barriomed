@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, View } from 'react-native';
+import { TouchableOpacity, Text, View, Platform } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { QueueCommander } from './quequecaller';
 import { QueueHistory } from './queuehistory';
@@ -20,13 +20,31 @@ export function StaffNavigator({ onLogout }: { onLogout: () => void }) {
         <Stack.Navigator
             initialRouteName="Queue"
             screenOptions={{
-                headerStyle: { backgroundColor: '#0F766E' },
+                headerStyle: { 
+                    backgroundColor: '#0D9488', // Consistent teal
+                    ...Platform.select({
+                        web: { height: 64 }
+                    })
+                },
                 headerTintColor: '#fff',
                 headerTitleStyle: { fontWeight: 'bold' },
                 headerRight: () => (
-                    <TouchableOpacity onPress={onLogout} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Feather name="log-out" size={20} color="white" />
-                        <Text style={{ color: 'white', fontWeight: 'bold' }}>Logout</Text>
+                    <TouchableOpacity 
+                        onPress={onLogout} 
+                        style={{ 
+                            flexDirection: 'row', 
+                            alignItems: 'center', 
+                            gap: 6, 
+                            marginRight: 16,
+                            paddingVertical: 6,
+                            paddingHorizontal: 12,
+                            backgroundColor: 'rgba(255,255,255,0.1)',
+                            borderRadius: 12,
+                            alignSelf: 'center'
+                        }}
+                    >
+                        <Feather name="log-out" size={18} color="white" />
+                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 14 }}>Logout</Text>
                     </TouchableOpacity>
                 ),
             }}
@@ -36,7 +54,7 @@ export function StaffNavigator({ onLogout }: { onLogout: () => void }) {
                 component={QueueCommander}
                 options={{
                     headerTitle: () => (
-                        <View>
+                        <View style={{ justifyContent: 'center' }}>
                             <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Queue Management</Text>
                             <Text style={{ color: '#99F6E4', fontSize: 12 }}>{staffName}</Text>
                         </View>

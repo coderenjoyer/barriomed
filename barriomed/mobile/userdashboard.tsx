@@ -14,6 +14,7 @@ import { FloatingActionButton } from '../components/patient/floatingactionbutton
 import { FamilyMemberCard, FamilyMember, YellowCardDetails } from '../components/patient/yellowcard';
 import { VaccineTimeline, VaccineRecord } from '../components/patient/vaccinetimeline';
 import { PatientChatMain } from '../components/patient/patientchat/patientchatmain';
+import { PatientPrescriptions } from '../components/patient/patientprescriptions';
 import { queueService, QueueTicketData } from '../lib/queueService';
 import { Alert } from 'react-native';
 
@@ -244,7 +245,10 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 <Text style={styles.quickActionText}>Get Queue Number</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.quickActionCard, styles.quickActionSecondary]}>
+            <TouchableOpacity
+                style={[styles.quickActionCard, styles.quickActionSecondary]}
+                onPress={() => setActiveTab('prescriptions')}
+            >
                 <View style={styles.quickActionIcon}>
                     <FontAwesome5 name="file-prescription" size={16} color="white" />
                 </View>
@@ -314,6 +318,14 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                             onCancel={handleCancelQueue}
                         />
                     </View>
+                );
+            case 'prescriptions':
+                return (
+                    <ScrollView contentContainerStyle={styles.scrollContent}>
+                        <View style={{ padding: 24, paddingBottom: 100 }}>
+                            <PatientPrescriptions patientId={userId} />
+                        </View>
+                    </ScrollView>
                 );
             case 'botika':
                 return (

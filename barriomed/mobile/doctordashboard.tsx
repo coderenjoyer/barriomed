@@ -14,6 +14,7 @@ import { ConsultationHistory } from '../components/doctor/consultationhistory';
 import { ConsultationForm } from '../components/doctor/consultationform';
 import { PrescriptionBuilder } from '../components/doctor/patientprescription';
 import { DoctorQueuePanel } from '../components/doctor/doctorqueuepanel';
+import { DoctorChatMain } from '../components/doctor/doctorchat/DoctorChatMain';
 import { useAuth } from '../lib/AuthContext';
 import { queueService } from '../lib/queueService';
 import {
@@ -69,7 +70,7 @@ function useCurrentServing() {
 }
 
 // ─── Tab type ────────────────────────────────────────────────────────────────
-type ActiveTab = 'patients' | 'queue';
+type ActiveTab = 'patients' | 'queue' | 'chat';
 
 // ─── Patient detail sub-tab ──────────────────────────────────────────────────
 type PatientTab = 'overview' | 'history' | 'prescribe';
@@ -128,6 +129,10 @@ export function DoctorDashboard({ onLogout }: { onLogout: () => void }) {
         setActiveTab(tab);
         if (tab !== 'patients') setSelectedPatient(null);
     };
+
+    // ── Chat unread badge (simple dot) ────────────────────────────────────────
+    // We intentionally keep this lightweight; real unread count is inside DoctorChatMain.
+
 
     const handleBack = () => {
         setSelectedPatient(null);
@@ -254,6 +259,16 @@ export function DoctorDashboard({ onLogout }: { onLogout: () => void }) {
                 <Feather name="list" size={16} color={activeTab === 'queue' ? '#0D9488' : '#9CA3AF'} />
                 <Text style={[styles.tabLabel, activeTab === 'queue' ? styles.tabLabelActive : styles.tabLabelInactive]}>
                     Queue
+                </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={[styles.tabItem, activeTab === 'chat' && styles.tabItemActive]}
+                onPress={() => handleTabChange('chat')}
+                activeOpacity={0.8}
+            >
+                <Feather name="message-circle" size={16} color={activeTab === 'chat' ? '#0D9488' : '#9CA3AF'} />
+                <Text style={[styles.tabLabel, activeTab === 'chat' ? styles.tabLabelActive : styles.tabLabelInactive]}>
+                    Chat
                 </Text>
             </TouchableOpacity>
         </View>
@@ -434,6 +449,10 @@ export function DoctorDashboard({ onLogout }: { onLogout: () => void }) {
     const renderContent = () => {
         if (activeTab === 'queue') {
             return <DoctorQueuePanel />;
+        }
+
+        if (activeTab === 'chat') {
+            return <DoctorChatMain />;
         }
 
         // Patients tab — no patient selected

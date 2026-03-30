@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Status
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { MedicineStockCard } from './medicinecards';
-import { inventoryService, InventoryItem } from '../../lib/inventoryService';
+import { inventoryService, InventoryItem } from '../../../lib/inventoryService';
 
 interface BotikaPageProps {
     userId?: string;
@@ -33,10 +33,10 @@ export function BotikaPage({ userId = 'user-1', scrollEnabled = true }: BotikaPa
     const loadData = async () => {
         setLoading(true);
         const { data, lastUpdated, offline } = await inventoryService.fetchInventory();
-        
+
         // Ensure data is structured properly if we modified the interface slightly
         const mappedData = data.map(m => ({ ...m, genericName: m.generic_name }));
-        
+
         setMedicines(mappedData);
         setIsOffline(offline);
         setLastUpdated(lastUpdated);
@@ -71,7 +71,7 @@ export function BotikaPage({ userId = 'user-1', scrollEnabled = true }: BotikaPa
     const formatTime = (ts: string | null) => {
         if (!ts) return '';
         const date = new Date(ts);
-        return date.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' }) + ' ' + date.toLocaleDateString();
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' ' + date.toLocaleDateString();
     };
 
     const EmptyState = () => (

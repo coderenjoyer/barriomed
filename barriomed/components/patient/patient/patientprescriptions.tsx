@@ -11,7 +11,7 @@ import {
     UIManager,
 } from 'react-native'
 import { Pill, ChevronDown, ChevronUp, Clock, User, RefreshCcw } from 'lucide-react-native'
-import { fetchPrescriptionsForPatient, type Prescription, type PrescriptionMedication } from '../../lib/medicalRecordsService'
+import { fetchPrescriptionsForPatient, type Prescription, type PrescriptionMedication } from '../../../lib/medicalRecordsService'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -23,9 +23,9 @@ interface PatientPrescriptionsProps {
 
 export function PatientPrescriptions({ patientId }: PatientPrescriptionsProps) {
     const [prescriptions, setPrescriptions] = useState<Prescription[]>([])
-    const [isLoading, setIsLoading]         = useState(true)
-    const [error, setError]                 = useState<string | null>(null)
-    const [expandedId, setExpandedId]       = useState<string | null>(null)
+    const [isLoading, setIsLoading] = useState(true)
+    const [error, setError] = useState<string | null>(null)
+    const [expandedId, setExpandedId] = useState<string | null>(null)
 
     const load = useCallback(async () => {
         setIsLoading(true)

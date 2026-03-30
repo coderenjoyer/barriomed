@@ -19,7 +19,7 @@ import {
     type PatientMedicalInfo,
     type PatientMedicalFormData,
     type BloodType,
-} from '../../lib/patientMedicalService';
+} from '../../../lib/patientMedicalService';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -181,9 +181,9 @@ export function PatientSettingsForm({
                     <View style={styles.profileSection}>
                         <TouchableOpacity onPress={handlePickImage} style={styles.profilePicContainer}>
                             {displayImageUri ? (
-                                <Image 
-                                    source={{ uri: displayImageUri }} 
-                                    style={styles.profilePic} 
+                                <Image
+                                    source={{ uri: displayImageUri }}
+                                    style={styles.profilePic}
                                 />
                             ) : (
                                 <View style={styles.profilePicPlaceholder}>
@@ -264,8 +264,8 @@ export function PatientSettingsForm({
                     {/* Blood Type Selector */}
                     <View style={styles.inputGroupFull}>
                         <Text style={styles.inputLabel}>Blood Type</Text>
-                        <ScrollView 
-                            horizontal 
+                        <ScrollView
+                            horizontal
                             showsHorizontalScrollIndicator={false}
                             contentContainerStyle={styles.chipScrollContent}
                         >

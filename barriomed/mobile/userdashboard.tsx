@@ -4,25 +4,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../lib/AuthContext';
 import { fetchMedicalInfo, type PatientMedicalInfo } from '../lib/patientMedicalService';
-import { PatientSettingsForm } from '../components/patient/PatientSettingsForm';
-import { BottomNavigation } from '../components/patient/bottomnav';
-import { ServiceSelector, ServiceType } from '../components/patient/selectservice';
-import { QueueTicket } from '../components/patient/queueticket';
-import { BotikaPage } from '../components/patient/botikamanagement';
-import { ImmunizationTimeline } from '../components/patient/immunotimeline';
-import { FloatingActionButton } from '../components/patient/floatingactionbutton';
-import { FamilyMemberCard, FamilyMember, YellowCardDetails } from '../components/patient/yellowcard';
-import { VaccineTimeline, VaccineRecord } from '../components/patient/vaccinetimeline';
+import { PatientSettingsForm } from '../components/patient/patient/PatientSettingsForm';
+import { BottomNavigation } from '../components/patient/patient/bottomnav';
+import { ServiceSelector, ServiceType } from '../components/patient/patient/selectservice';
+import { QueueTicket } from '../components/patient/patient/queueticket';
+import { BotikaPage } from '../components/patient/patient/botikamanagement';
+import { FloatingActionButton } from '../components/patient/patient/floatingactionbutton';
+import { FamilyMemberCard, FamilyMember, YellowCardDetails } from '../components/patient/patient/yellowcard';
+import { PatientMedicalRecords } from '../components/patient/patient/medicalrecords';
 import { PatientChatMain } from '../components/patient/patientchat/patientchatmain';
-import { PatientPrescriptions } from '../components/patient/patientprescriptions';
+import { PatientPrescriptions } from '../components/patient/patient/patientprescriptions';
 import { queueService, QueueTicketData } from '../lib/queueService';
 import { Alert } from 'react-native';
 
 // Family members – empty until real data is bound
 const initialFamilyMembers: FamilyMember[] = [];
-
-// Vaccine records – empty until real data is bound
-const vaccineRecords: VaccineRecord[] = [];
 
 // Dynamic greeting based on time of day
 function getGreeting(): string {
@@ -70,19 +66,19 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
 
     const [queueTicket, setQueueTicket] = useState<QueueTicketData | null>(null);
     const isQueueing = !!queueTicket;
-    
+
     // Resume queue state (A-FR-04 Offline Display, A-FR-01 Silent Sync)
     useEffect(() => {
         let isMounted = true;
         async function loadTicket() {
             if (!userId) return;
-            
+
             const localData = await queueService.getLocalTicket();
             if (localData && isMounted) {
                 setQueueTicket(localData);
                 setSelectedService(localData.serviceType);
             }
-            
+
             const synced = await queueService.syncPendingTicket(userId);
             if (synced && isMounted) {
                 setQueueTicket(synced);
@@ -95,7 +91,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
     // Supabase Real-time connection (A-FR-02, A-FR-03, A-FR-05)
     useEffect(() => {
         if (!userId || !queueTicket) return;
-        
+
         const unsubscribe = queueService.subscribeToQueue(
             queueTicket.serviceType,
             userId,
@@ -103,23 +99,23 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 setQueueTicket(prev => {
                     if (!prev) return prev;
                     if (prev.nowServing >= nowServing) return prev; // Don't go backwards
-                    
+
                     const peopleAhead = Math.max(0, prev.queueNumber - nowServing - 1); // -1 because nowServing is currently being served
-                    
+
                     if (peopleAhead === 5) {
                         Alert.alert(
                             "Malapit na ang iyong turn",
                             "Pumunta na sa health center. Ikaw ay 5 numbers away na lang."
                         );
                     }
-                    
+
                     const updated: QueueTicketData = {
                         ...prev,
                         nowServing,
                         peopleAhead,
                         estWaitTime: `${peopleAhead * 5} mins`
                     };
-                    
+
                     queueService.updateLocalTicket(updated);
                     return updated;
                 });
@@ -128,7 +124,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 setQueueTicket(prev => {
                     if (!prev) return prev;
                     const updated: QueueTicketData = { ...prev, status };
-                    
+
                     if (status === 'No Show') {
                         Alert.alert("Queue Missed", "Your number was called but you were not present. You may be re-inserted by staff.");
                     } else if (status === 'Completed') {
@@ -136,13 +132,13 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                         setSelectedService(null);
                         return null;
                     }
-                    
+
                     queueService.updateLocalTicket(updated);
                     return updated;
                 });
             }
         );
-        
+
         return unsubscribe;
     }, [userId, queueTicket?.serviceType]);
 
@@ -151,12 +147,12 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
         if (!selectedService || !userId) return;
         setIsLoading(true);
         setShowServiceSelector(false);
-        
+
         const ticket = await queueService.requestTicket(userId, selectedService);
-        
+
         setIsLoading(false);
         setQueueTicket(ticket);
-        setActiveTab('queue'); 
+        setActiveTab('queue');
     };
 
     const handleCancelQueue = async () => {
@@ -287,7 +283,6 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                             {isQueueing && renderQueueStatusCard()}
                             {renderQuickActions()}
                             <BotikaPage scrollEnabled={false} />
-                            <ImmunizationTimeline />
                         </View>
                     </ScrollView>
                 );
@@ -421,9 +416,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                                 />
                             )}
 
-                            <View style={[styles.queueCard, { marginTop: 0 }]}>
-                                <VaccineTimeline records={vaccineRecords} />
-                            </View>
+                            <PatientMedicalRecords patientId={userId} />
                         </View>
                     </ScrollView>
                 );

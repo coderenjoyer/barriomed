@@ -53,10 +53,10 @@ CREATE POLICY "Authenticated users can read profiles"
     TO authenticated
     USING (true);
 
--- Allow anyone to insert (needed for signup before session is fully established)
+-- Allow anon/users to insert (needed for signup) EXCEPT system_admin
 CREATE POLICY "Allow insert during signup"
     ON users FOR INSERT
-    WITH CHECK (true);
+    WITH CHECK (role != 'system_admin');
 
 -- Allow users to update only their own row
 CREATE POLICY "Users can update own profile"

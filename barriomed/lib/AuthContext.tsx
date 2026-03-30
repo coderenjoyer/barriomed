@@ -154,6 +154,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         password,
         role,
     }) => {
+        if (role === 'admin') {
+            return { success: false, error: 'Registration is disabled for System Administrator accounts. Please contact support.' };
+        }
+
         const dbRole = UI_ROLE_TO_DB[role];
 
         // 1. Create the auth user via Supabase Auth (email + PIN-as-password)

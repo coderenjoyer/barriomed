@@ -57,6 +57,15 @@ function AppContent() {
       case 'doctor':
         return <DoctorDashboard onLogout={handleLogout} />;
       case 'admin':
+        // ── Platform Guard: Admin is web-only ──────────────────────────────
+        // The AdminDashboard itself also enforces this, but we add a second
+        // layer here at the router level to prevent any rendering at all on
+        // mobile platforms.
+        if (Platform.OS !== 'web') {
+          // Force logout and redirect to login immediately
+          handleLogout();
+          return <LoginPage onLoginComplete={handleLogin} />;
+        }
         return <AdminDashboard onLogout={handleLogout} onSetUserRole={setUserRole} />;
       default:
         return <LoginPage onLoginComplete={handleLogin} />;

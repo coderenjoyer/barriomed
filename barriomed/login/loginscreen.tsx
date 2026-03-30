@@ -321,7 +321,12 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
             <TouchableOpacity
-                onPress={() => { if (selectedRole) setScreen('auth'); else setError('Please select a role.'); }}
+                onPress={() => { 
+                    if (selectedRole) {
+                        if (selectedRole === 'admin') setAuthMode('signIn');
+                        setScreen('auth'); 
+                    } else setError('Please select a role.'); 
+                }}
                 activeOpacity={0.85}
                 style={[styles.primaryBtn, !selectedRole && styles.primaryBtnDisabled]}
             >
@@ -340,20 +345,31 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
             </TouchableOpacity>
 
             {/* Sign In / Sign Up Toggle */}
-            <View style={styles.toggleRow}>
-                <TouchableOpacity
-                    onPress={() => switchMode('signIn')}
-                    style={[styles.toggleBtn, authMode === 'signIn' && styles.toggleBtnActive]}
-                >
-                    <Text style={[styles.toggleBtnText, authMode === 'signIn' && styles.toggleBtnTextActive]}>Sign In</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    onPress={() => switchMode('signUp')}
-                    style={[styles.toggleBtn, authMode === 'signUp' && styles.toggleBtnActive]}
-                >
-                    <Text style={[styles.toggleBtnText, authMode === 'signUp' && styles.toggleBtnTextActive]}>Create Account</Text>
-                </TouchableOpacity>
-            </View>
+            {selectedRole !== 'admin' ? (
+                <View style={styles.toggleRow}>
+                    <TouchableOpacity
+                        onPress={() => switchMode('signIn')}
+                        style={[styles.toggleBtn, authMode === 'signIn' && styles.toggleBtnActive]}
+                    >
+                        <Text style={[styles.toggleBtnText, authMode === 'signIn' && styles.toggleBtnTextActive]}>Sign In</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={() => switchMode('signUp')}
+                        style={[styles.toggleBtn, authMode === 'signUp' && styles.toggleBtnActive]}
+                    >
+                        <Text style={[styles.toggleBtnText, authMode === 'signUp' && styles.toggleBtnTextActive]}>Create Account</Text>
+                    </TouchableOpacity>
+                </View>
+            ) : (
+                <View style={{ marginBottom: 20 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', textAlign: 'center' }}>
+                        System Administrator
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 4 }}>
+                        Sign in to your admin account
+                    </Text>
+                </View>
+            )}
 
             {/* Fields */}
             {authMode === 'signUp' && (

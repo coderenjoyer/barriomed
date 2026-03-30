@@ -1,10 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { View, Text, TouchableOpacity, TextInput, ActivityIndicator, Animated } from 'react-native'
 import { Feather } from '@expo/vector-icons'
+import { adminService } from '../../lib/adminService'
+import { useAuth } from '../../lib/AuthContext'
 
 export function DataMaintenance() {
+    const { userProfile } = useAuth()
+    const adminId = userProfile?.id ?? ''
     const [showResetConfirm, setShowResetConfirm] = useState(false)
     const [resetInput, setResetInput] = useState('')
+    const [isResetting, setIsResetting] = useState(false)
+    const [resetResult, setResetResult] = useState<{ success: boolean; error?: string } | null>(null)
     const [isCleaning, setIsCleaning] = useState(false)
     const [duplicatesFound, setDuplicatesFound] = useState<any[]>([])
 
@@ -39,22 +45,23 @@ export function DataMaintenance() {
         }
     }, [duplicatesFound]);
 
+    const handleQueueReset = async () => {
+        if (resetInput !== 'RESET') return
+        setIsResetting(true)
+        const result = await adminService.resetQueue(adminId)
+        setResetResult(result)
+        setShowResetConfirm(false)
+        setResetInput('')
+        setIsResetting(false)
+        setTimeout(() => setResetResult(null), 5000)
+    }
+
     const handleFindDuplicates = () => {
         setIsCleaning(true)
         setTimeout(() => {
             setDuplicatesFound([
-                {
-                    id: 1,
-                    name1: 'Maria Santos',
-                    name2: 'Maria A. Santos',
-                    match: 85,
-                },
-                {
-                    id: 2,
-                    name1: 'Juan Cruz',
-                    name2: 'Juan Dela Cruz',
-                    match: 78,
-                },
+                { id: 1, name1: 'Maria Santos',   name2: 'Maria A. Santos', match: 85 },
+                { id: 2, name1: 'Juan Cruz',       name2: 'Juan Dela Cruz',  match: 78 },
             ])
             setIsCleaning(false)
         }, 1500)
@@ -109,6 +116,21 @@ export function DataMaintenance() {
                             Force clear all active queue entries. Use only for system glitches or end-of-day cleanup.
                         </Text>
 
+                        {resetResult && (
+                            <View className={`flex-row items-center gap-2 p-3 rounded-xl border mb-3 ${
+                                resetResult.success ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'
+                            }`}>
+                                <Feather
+                                    name={resetResult.success ? 'check-circle' : 'alert-circle'}
+                                    size={14}
+                                    color={resetResult.success ? '#10B981' : '#E11D48'}
+                                />
+                                <Text className={`text-xs font-bold ${resetResult.success ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                    {resetResult.success ? 'Queue reset successfully. All active tickets completed.' : resetResult.error}
+                                </Text>
+                            </View>
+                        )}
+
                         {!showResetConfirm ? (
                             <TouchableOpacity
                                 onPress={() => setShowResetConfirm(true)}
@@ -143,17 +165,19 @@ export function DataMaintenance() {
                                         autoCapitalize="characters"
                                     />
                                     <TouchableOpacity
-                                        disabled={resetInput !== 'RESET'}
-                                        className={`px-4 py-2 rounded-lg items-center justify-center ${resetInput === 'RESET' ? 'bg-rose-600' : 'bg-rose-600 opacity-50'}`}
+                                        onPress={handleQueueReset}
+                                        disabled={resetInput !== 'RESET' || isResetting}
+                                        className={`px-4 py-2 rounded-lg items-center justify-center ${resetInput === 'RESET' && !isResetting ? 'bg-rose-600' : 'bg-rose-600 opacity-50'}`}
                                     >
-                                        <Text className="text-white font-bold text-sm">Confirm</Text>
+                                        {isResetting ? (
+                                            <ActivityIndicator size="small" color="white" />
+                                        ) : (
+                                            <Text className="text-white font-bold text-sm">Confirm</Text>
+                                        )}
                                     </TouchableOpacity>
                                 </View>
                                 <TouchableOpacity
-                                    onPress={() => {
-                                        setShowResetConfirm(false)
-                                        setResetInput('')
-                                    }}
+                                    onPress={() => { setShowResetConfirm(false); setResetInput('') }}
                                     className="w-full mt-2 items-center"
                                 >
                                     <Text className="text-xs text-rose-500 font-medium">Cancel</Text>

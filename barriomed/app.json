@@ -21,8 +21,25 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ]
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/nobg.png",
+          "color": "#0D9488",
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "BarrioMed"
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/nobg.png"
     }

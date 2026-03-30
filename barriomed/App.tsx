@@ -10,6 +10,7 @@ import { StaffNavigator } from './components/staff/StaffNavigator';
 import { DoctorDashboard } from './mobile/doctordashboard';
 import { AdminDashboard } from './web/admin/admindashboard';
 import { AuthProvider, useAuth } from './lib/AuthContext';
+import { NotificationProvider } from './lib/NotificationContext';
 import { LogBox, Platform, UIManager } from 'react-native';
 
 // Suppress New Architecture warnings for LayoutAnimation
@@ -82,7 +83,9 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
     </AuthProvider>
   );
 }

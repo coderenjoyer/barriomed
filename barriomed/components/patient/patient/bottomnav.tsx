@@ -6,11 +6,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 interface BottomNavigationProps {
     activeTab: string;
     onTabChange: (tab: string) => void;
+    unreadNotifications?: number;
+    unreadChat?: number;
 }
 
 export function BottomNavigation({
     activeTab,
     onTabChange,
+    unreadNotifications = 0,
+    unreadChat = 0,
 }: BottomNavigationProps) {
     const insets = useSafeAreaInsets();
 
@@ -61,17 +65,21 @@ export function BottomNavigation({
                             style={styles.tabButton}
                             activeOpacity={0.7}
                         >
-                            <View
-                                style={[
-                                    styles.iconContainer,
-                                ]}
-                            >
+                            <View style={styles.iconContainer}>
                                 <IconLib
                                     name={tab.icon as any}
                                     size={22}
                                     color={isActive ? '#0D9488' : '#9CA3AF'}
                                     style={isActive && tab.id === 'home' ? styles.filledIcon : undefined}
                                 />
+                                {/* Unread badge */}
+                                {tab.id === 'chat' && unreadChat > 0 && (
+                                    <View style={styles.badgeWrap}>
+                                        <Text style={styles.badgeText}>
+                                            {unreadChat > 9 ? '9+' : unreadChat}
+                                        </Text>
+                                    </View>
+                                )}
                             </View>
 
                             <Text
@@ -85,10 +93,6 @@ export function BottomNavigation({
 
                             {isActive && (
                                 <View style={styles.activeIndicator} />
-                            )}
-
-                            {tab.id === 'chat' && !isActive && (
-                                <View style={styles.notificationDot} />
                             )}
                         </TouchableOpacity>
                     );
@@ -160,5 +164,25 @@ const styles = StyleSheet.create({
         height: 8,
         backgroundColor: '#0D9488',
         borderRadius: 4,
+    },
+    badgeWrap: {
+        position: 'absolute',
+        top: -4,
+        right: -6,
+        minWidth: 16,
+        height: 16,
+        borderRadius: 8,
+        backgroundColor: '#EF4444',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: '#FFFFFF',
+        paddingHorizontal: 3,
+    },
+    badgeText: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        lineHeight: 12,
     },
 });

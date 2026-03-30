@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../lib/AuthContext';
+import { useNotifications } from '../lib/NotificationContext';
 import { fetchMedicalInfo, type PatientMedicalInfo } from '../lib/patientMedicalService';
 import { PatientSettingsForm } from '../components/patient/patient/PatientSettingsForm';
 import { BottomNavigation } from '../components/patient/patient/bottomnav';
@@ -14,8 +15,10 @@ import { FamilyMemberCard, FamilyMember, YellowCardDetails } from '../components
 import { PatientMedicalRecords } from '../components/patient/patient/medicalrecords';
 import { PatientChatMain } from '../components/patient/patientchat/patientchatmain';
 import { PatientPrescriptions } from '../components/patient/patient/patientprescriptions';
+import { NotificationsPanel } from '../components/patient/patient/NotificationsPanel';
 import { queueService, QueueTicketData } from '../lib/queueService';
 import { Alert } from 'react-native';
+import { NotificationType } from '../lib/notificationService';
 
 // Family members – empty until real data is bound
 const initialFamilyMembers: FamilyMember[] = [];
@@ -34,12 +37,14 @@ interface UserDashboardProps {
 
 export function UserDashboard({ onLogout }: UserDashboardProps) {
     const { userProfile, session } = useAuth();
+    const { unreadCount } = useNotifications();
     const userId = session?.user?.id ?? '';
 
     const [activeTab, setActiveTab] = useState('home');
     const [selectedService, setSelectedService] = useState<ServiceType | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showServiceSelector, setShowServiceSelector] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
     const [selectedMemberId, setSelectedMemberId] = useState('1');
     const [membersList, setMembersList] = useState<FamilyMember[]>(initialFamilyMembers);
 
@@ -166,6 +171,23 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
         setShowServiceSelector(true);
     };
 
+    const handleNotificationNavigate = (type: NotificationType, relatedId: string | null) => {
+        switch (type) {
+            case 'chat':
+                setActiveTab('chat');
+                break;
+            case 'prescription':
+                setActiveTab('prescriptions');
+                break;
+            case 'queue':
+                setActiveTab('queue');
+                break;
+            case 'record':
+                setActiveTab('records');
+                break;
+        }
+    };
+
     const renderHeader = () => (
         <View style={styles.header}>
             <View style={styles.headerLeft}>
@@ -181,9 +203,18 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                     <Feather name="log-out" size={20} color="#4B5563" />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.iconButton}>
+                <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => setShowNotifications(true)}
+                >
                     <Feather name="bell" size={20} color="#4B5563" />
-                    <View style={styles.badge} />
+                    {unreadCount > 0 && (
+                        <View style={styles.badgeWrap}>
+                            <Text style={styles.badgeText}>
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                            </Text>
+                        </View>
+                    )}
                 </TouchableOpacity>
 
                 <View style={styles.avatarContainer}>
@@ -445,6 +476,13 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
 
             <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
+            {/* Notifications Panel */}
+            <NotificationsPanel
+                visible={showNotifications}
+                onClose={() => setShowNotifications(false)}
+                onNavigate={handleNotificationNavigate}
+            />
+
             {/* Patient Settings Form Modal */}
             <PatientSettingsForm
                 mode={settingsMode}
@@ -531,6 +569,26 @@ const styles = StyleSheet.create({
         backgroundColor: '#EF4444',
         borderWidth: 1,
         borderColor: '#FFFFFF',
+    },
+    badgeWrap: {
+        position: 'absolute',
+        top: 2,
+        right: 2,
+        minWidth: 16,
+        height: 16,
+        borderRadius: 8,
+        backgroundColor: '#EF4444',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1.5,
+        borderColor: '#FFFFFF',
+        paddingHorizontal: 3,
+    },
+    badgeText: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        lineHeight: 12,
     },
     avatarContainer: {
         width: 40,

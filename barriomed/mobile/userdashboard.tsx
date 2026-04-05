@@ -52,6 +52,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
     const [medicalInfo, setMedicalInfo] = useState<PatientMedicalInfo | null>(null);
     const [showSettingsForm, setShowSettingsForm] = useState(false);
     const [settingsMode, setSettingsMode] = useState<'add' | 'edit'>('add');
+    const [showCompletionModal, setShowCompletionModal] = useState(false);
 
     // Fetch medical info on mount
     useEffect(() => {
@@ -105,7 +106,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                     if (!prev) return prev;
                     if (prev.nowServing >= nowServing) return prev; // Don't go backwards
 
-                    const peopleAhead = Math.max(0, prev.queueNumber - nowServing - 1); // -1 because nowServing is currently being served
+                    const peopleAhead = Math.max(0, prev.queueNumber - nowServing - 1);
 
                     if (peopleAhead === 5) {
                         Alert.alert(
@@ -126,18 +127,24 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 });
             },
             (status) => {
+                // IMPORTANT: Never call other setState setters (e.g. setSelectedService)
+                // inside a setState updater function — it is a React anti-pattern and
+                // will be silently ignored in concurrent mode.
+                // Instead we just update queueTicket.status here and let the watching
+                // useEffect below handle the side-effects (clearing storage, showing modal).
                 setQueueTicket(prev => {
                     if (!prev) return prev;
-                    const updated: QueueTicketData = { ...prev, status };
 
                     if (status === 'No Show') {
-                        Alert.alert("Queue Missed", "Your number was called but you were not present. You may be re-inserted by staff.");
-                    } else if (status === 'Completed') {
-                        queueService.clearLocalTicket();
-                        setSelectedService(null);
-                        return null;
+                        Alert.alert(
+                            "Queue Missed",
+                            "Your number was called but you were not present. You may be re-inserted by staff."
+                        );
                     }
 
+                    // Write the updated status to local storage so we have the
+                    // freshest state if the app is backgrounded and resumed.
+                    const updated: QueueTicketData = { ...prev, status };
                     queueService.updateLocalTicket(updated);
                     return updated;
                 });
@@ -146,6 +153,28 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
 
         return unsubscribe;
     }, [userId, queueTicket?.serviceType]);
+
+    // Watch queueTicket.status and handle terminal transitions outside of the
+    // setState updater (the correct place for side-effects in React).
+    useEffect(() => {
+        if (!queueTicket) return;
+
+        const { status } = queueTicket;
+
+        if (status === 'Completed') {
+            // Clear local cache and surface the completion modal.
+            queueService.clearLocalTicket();
+            setQueueTicket(null);
+            setSelectedService(null);
+            setShowCompletionModal(true);
+        } else if (status === 'Cancelled') {
+            // Cancelled via another device / staff action — just clean up silently.
+            queueService.clearLocalTicket();
+            setQueueTicket(null);
+            setSelectedService(null);
+            setActiveTab('home');
+        }
+    }, [queueTicket?.status]);
 
 
     const handleServiceConfirm = async () => {
@@ -156,18 +185,47 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
         const ticket = await queueService.requestTicket(userId, selectedService);
 
         setIsLoading(false);
+
+        if ((ticket as any).alreadyActive) {
+            // User already has a live queue — surface it without creating a new one
+            setQueueTicket(ticket);
+            setSelectedService(ticket.serviceType);
+            setActiveTab('queue');
+            Alert.alert(
+                'Active Queue Found',
+                `You already have Queue #${ticket.queueNumber} active. Please wait for your turn or cancel it first.`,
+                [{ text: 'View Queue', onPress: () => setActiveTab('queue') }]
+            );
+            return;
+        }
+
         setQueueTicket(ticket);
         setActiveTab('queue');
     };
 
     const handleCancelQueue = async () => {
-        await queueService.clearLocalTicket();
+        // cancelTicket marks the row CANCELLED in Supabase first, then clears local storage.
+        // This prevents ghost WAITING rows that would cause subsequent users to receive
+        // inflated / duplicated queue numbers.
+        await queueService.cancelTicket(userId);
         setQueueTicket(null);
         setSelectedService(null);
         setActiveTab('home');
     };
 
     const handleGetQueueNumber = () => {
+        if (isQueueing) {
+            // Already in a queue — navigate to queue tab and show info
+            Alert.alert(
+                'You Already Have an Active Queue',
+                `Queue #${queueTicket?.queueNumber} is currently active. Complete or cancel your existing queue first.`,
+                [
+                    { text: 'View Queue', onPress: () => setActiveTab('queue') },
+                    { text: 'Dismiss', style: 'cancel' },
+                ]
+            );
+            return;
+        }
         setShowServiceSelector(true);
     };
 
@@ -233,43 +291,68 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
         </View>
     );
 
-    const renderQueueStatusCard = () => (
-        <View style={styles.queueCard}>
-            <Text style={styles.queueCardLabel}>CURRENT POSITION</Text>
-            <View style={styles.queueCardContent}>
-                <View style={styles.queueNumberSection}>
-                    <Text style={styles.queueNumberHash}>#</Text>
-                    <Text style={styles.queueNumber}>{queueTicket?.queueNumber}</Text>
-                    <Text style={styles.queueTotal}>/{(queueTicket?.nowServing || 0) + (queueTicket?.peopleAhead || 0)}</Text>
+    const renderQueueStatusCard = () => {
+        const isServing = queueTicket?.status === 'Serving';
+
+        if (isServing) {
+            return (
+                <View style={[styles.queueCard, styles.queueCardServing]}>
+                    <Text style={[styles.queueCardLabel, { color: '#92400E' }]}>NOW SERVING</Text>
+                    <View style={styles.yourTurnRow}>
+                        <View style={styles.yourTurnBadge}>
+                            <Feather name="bell" size={20} color="#92400E" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.yourTurnText}>It's Your Turn!</Text>
+                            <Text style={styles.yourTurnSubText}>Please proceed to the Doctor's Consultation Area</Text>
+                        </View>
+                        <Text style={styles.yourTurnNumber}>#{queueTicket?.queueNumber}</Text>
+                    </View>
                 </View>
-                <View style={styles.queueCircle}>
-                    <Text style={styles.queueCircleLabel}>Your Turn</Text>
-                    <Text style={styles.queueCircleValue}>In {queueTicket?.peopleAhead}</Text>
+            );
+        }
+
+        return (
+            <View style={styles.queueCard}>
+                <Text style={styles.queueCardLabel}>CURRENT POSITION</Text>
+                <View style={styles.queueCardContent}>
+                    <View style={styles.queueNumberSection}>
+                        <Text style={styles.queueNumberHash}>#</Text>
+                        <Text style={styles.queueNumber}>{queueTicket?.queueNumber}</Text>
+                        <Text style={styles.queueTotal}>/{(queueTicket?.nowServing || 0) + (queueTicket?.peopleAhead || 0)}</Text>
+                    </View>
+                    <View style={styles.queueCircle}>
+                        <Text style={styles.queueCircleLabel}>Your Turn</Text>
+                        <Text style={styles.queueCircleValue}>In {queueTicket?.peopleAhead}</Text>
+                    </View>
+                </View>
+                <View style={styles.queueDetails}>
+                    <View style={styles.queueDetailRow}>
+                        <Feather name="clock" size={14} color="#0D9488" />
+                        <Text style={styles.queueDetailText}>Est. Wait: {queueTicket?.estWaitTime}</Text>
+                    </View>
                 </View>
             </View>
-            <View style={styles.queueDetails}>
-                <View style={styles.queueDetailRow}>
-                    <Feather name="clock" size={14} color="#0D9488" />
-                    <Text style={styles.queueDetailText}>Est. Wait: {queueTicket?.estWaitTime}</Text>
-                </View>
-                <View style={styles.queueDetailRow}>
-                    <Feather name="map-pin" size={14} color="#0D9488" />
-                    <Text style={styles.queueDetailText}>Dr. Smith's Clinic, Room 302</Text>
-                </View>
-            </View>
-        </View>
-    );
+        );
+    };
 
     const renderQuickActions = () => (
         <View style={styles.quickActionsGrid}>
             <TouchableOpacity
-                style={[styles.quickActionCard, styles.quickActionPrimary]}
+                style={[
+                    styles.quickActionCard,
+                    styles.quickActionPrimary,
+                    isQueueing && styles.quickActionDisabled,
+                ]}
                 onPress={handleGetQueueNumber}
+                disabled={isLoading}
             >
                 <View style={styles.quickActionIcon}>
-                    <Feather name="search" size={16} color="white" />
+                    <Feather name={isQueueing ? 'clock' : 'search'} size={16} color="white" />
                 </View>
-                <Text style={styles.quickActionText}>Get Queue Number</Text>
+                <Text style={styles.quickActionText}>
+                    {isQueueing ? `Queue #${queueTicket?.queueNumber} Active` : 'Get Queue Number'}
+                </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -341,6 +424,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                             nowServing={queueTicket?.nowServing || 0}
                             peopleAhead={queueTicket?.peopleAhead || 0}
                             estWaitTime={queueTicket?.estWaitTime || 'Unknown'}
+                            status={queueTicket?.status || 'Pending'}
                             onCancel={handleCancelQueue}
                         />
                     </View>
@@ -472,7 +556,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 {renderContent()}
             </SafeAreaView>
 
-            {activeTab === 'home' && <FloatingActionButton onPress={handleGetQueueNumber} />}
+            {activeTab === 'home' && !isQueueing && <FloatingActionButton onPress={handleGetQueueNumber} />}
 
             <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
@@ -492,6 +576,40 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                 onClose={() => setShowSettingsForm(false)}
                 onSaved={(record) => setMedicalInfo(record)}
             />
+
+            {/* Queue Completed Modal */}
+            {showCompletionModal && (
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, styles.completionModalContent]}>
+                        <View style={styles.completionIconCircle}>
+                            <Feather name="check-circle" size={40} color="#0D9488" />
+                        </View>
+                        <Text style={styles.completionTitle}>Queue Completed!</Text>
+                        <Text style={styles.completionMessage}>
+                            Your visit is done. Thank you for using Barriomed.
+                            You may get a new number anytime.
+                        </Text>
+                        <TouchableOpacity
+                            style={styles.completionButton}
+                            onPress={() => {
+                                setShowCompletionModal(false);
+                                setActiveTab('home');
+                            }}
+                        >
+                            <Text style={styles.completionButtonText}>Back to Home</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.requeueButton}
+                            onPress={() => {
+                                setShowCompletionModal(false);
+                                setShowServiceSelector(true);
+                            }}
+                        >
+                            <Text style={styles.requeueButtonText}>Get Another Number</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            )}
 
             {/* Service Selector Modal */}
             {showServiceSelector && (
@@ -687,6 +805,43 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 3,
     },
+    queueCardServing: {
+        backgroundColor: '#FFFBEB',
+        borderColor: '#FDE68A',
+        borderWidth: 2,
+        shadowColor: '#F59E0B',
+        shadowOpacity: 0.2,
+    },
+    yourTurnRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    yourTurnBadge: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#FEF3C7',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2,
+        borderColor: '#FDE68A',
+    },
+    yourTurnText: {
+        fontSize: 17,
+        fontWeight: 'bold',
+        color: '#92400E',
+    },
+    yourTurnSubText: {
+        fontSize: 12,
+        color: '#B45309',
+        marginTop: 2,
+    },
+    yourTurnNumber: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: '#F59E0B',
+    },
     queueCardLabel: {
         fontSize: 11,
         fontWeight: '600',
@@ -774,6 +929,10 @@ const styles = StyleSheet.create({
     quickActionPrimary: {
         backgroundColor: '#0D9488',
     },
+    quickActionDisabled: {
+        backgroundColor: '#5EEAD4',  // lighter teal to signal "already active"
+        opacity: 0.85,
+    },
     quickActionSecondary: {
         backgroundColor: '#10B981',
     },
@@ -833,6 +992,67 @@ const styles = StyleSheet.create({
         fontSize: 20,
         fontWeight: 'bold',
         color: '#1F2937',
+    },
+    // Queue Completion Modal
+    completionModalContent: {
+        alignItems: 'center',
+        paddingTop: 32,
+        paddingHorizontal: 24,
+        paddingBottom: 40,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+    },
+    completionIconCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#F0FDFA',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: '#CCFBF1',
+    },
+    completionTitle: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: '#111827',
+        marginBottom: 12,
+        textAlign: 'center',
+    },
+    completionMessage: {
+        fontSize: 14,
+        color: '#6B7280',
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: 28,
+        paddingHorizontal: 8,
+    },
+    completionButton: {
+        width: '100%',
+        backgroundColor: '#0D9488',
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    completionButtonText: {
+        color: 'white',
+        fontWeight: '700',
+        fontSize: 16,
+    },
+    requeueButton: {
+        width: '100%',
+        paddingVertical: 14,
+        borderRadius: 12,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+    },
+    requeueButtonText: {
+        color: '#0D9488',
+        fontWeight: '600',
+        fontSize: 16,
     },
     settingsButton: {
         flexDirection: 'row' as const,

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Dimensions } from 'react-native';
-import { Feather, FontAwesome5 } from '@expo/vector-icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Animated } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { ServiceType } from './selectservice';
+import { QueueStatus } from '../../../lib/queueService';
 
 interface QueueTicketProps {
     serviceType: ServiceType;
@@ -9,6 +10,7 @@ interface QueueTicketProps {
     nowServing: number;
     peopleAhead: number;
     estWaitTime: string;
+    status: QueueStatus | string;
     onCancel: () => void;
 }
 
@@ -18,9 +20,28 @@ export function QueueTicket({
     nowServing,
     peopleAhead,
     estWaitTime,
+    status,
     onCancel,
 }: QueueTicketProps) {
     const [showCancelModal, setShowCancelModal] = useState(false);
+    const isServing = status === 'Serving';
+
+    // Pulse animation for "Your Turn!" banner
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    useEffect(() => {
+        if (!isServing) {
+            pulseAnim.setValue(1);
+            return;
+        }
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1.06, duration: 700, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 1,    duration: 700, useNativeDriver: true }),
+            ])
+        );
+        loop.start();
+        return () => loop.stop();
+    }, [isServing]);
 
     const getServiceLabel = (type: ServiceType) => {
         switch (type) {
@@ -85,29 +106,47 @@ export function QueueTicket({
 
                 {/* Bottom Info Grid */}
                 <View style={styles.cardContent}>
-                    <View style={styles.statsGrid}>
-                        <View style={styles.statBox}>
-                            <Text style={styles.statLabel}>Now Serving</Text>
-                            <View style={styles.statValueContainer}>
-                                <Text style={styles.statValue}>#{nowServing}</Text>
-                                <View style={styles.liveIndicator}>
-                                    <View style={styles.liveDot} />
+                    {isServing ? (
+                        /* ── YOUR TURN BANNER ───────────────────────────────── */
+                        <Animated.View style={[styles.yourTurnBanner, { transform: [{ scale: pulseAnim }] }]}>
+                            <View style={styles.yourTurnIconRow}>
+                                <Feather name="bell" size={28} color="#92400E" />
+                            </View>
+                            <Text style={styles.yourTurnHeading}>It's Your Turn!</Text>
+                            <Text style={styles.yourTurnSub}>Please proceed to the window now.</Text>
+                            <View style={styles.yourTurnNumRow}>
+                                <Text style={styles.yourTurnNumLabel}>NOW SERVING</Text>
+                                <Text style={styles.yourTurnNum}>#{queueNumber}</Text>
+                            </View>
+                        </Animated.View>
+                    ) : (
+                        /* ── NORMAL WAITING VIEW ────────────────────────────── */
+                        <>
+                            <View style={styles.statsGrid}>
+                                <View style={styles.statBox}>
+                                    <Text style={styles.statLabel}>Now Serving</Text>
+                                    <View style={styles.statValueContainer}>
+                                        <Text style={styles.statValue}>#{nowServing}</Text>
+                                        <View style={styles.liveIndicator}>
+                                            <View style={styles.liveDot} />
+                                        </View>
+                                    </View>
+                                </View>
+                                <View style={styles.statBox}>
+                                    <Text style={styles.statLabel}>People Ahead</Text>
+                                    <View style={styles.statValueContainer}>
+                                        <Feather name="users" size={16} color="#0D9488" />
+                                        <Text style={styles.statValue}>{peopleAhead}</Text>
+                                    </View>
                                 </View>
                             </View>
-                        </View>
-                        <View style={styles.statBox}>
-                            <Text style={styles.statLabel}>People Ahead</Text>
-                            <View style={styles.statValueContainer}>
-                                <Feather name="users" size={16} color="#0D9488" />
-                                <Text style={styles.statValue}>{peopleAhead}</Text>
-                            </View>
-                        </View>
-                    </View>
 
-                    <View style={styles.waittimeBox}>
-                        <Feather name="clock" size={16} color="#0D9488" />
-                        <Text style={styles.waittimeText}>Est. Wait: {estWaitTime}</Text>
-                    </View>
+                            <View style={styles.waittimeBox}>
+                                <Feather name="clock" size={16} color="#0D9488" />
+                                <Text style={styles.waittimeText}>Est. Wait: {estWaitTime}</Text>
+                            </View>
+                        </>
+                    )}
 
                     <TouchableOpacity
                         onPress={() => setShowCancelModal(true)}
@@ -315,6 +354,65 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
         color: '#4B5563',
+    },
+    // ── Your Turn Banner ────────────────────────────────────────
+    yourTurnBanner: {
+        backgroundColor: '#FFFBEB',
+        borderWidth: 2,
+        borderColor: '#F59E0B',
+        borderRadius: 20,
+        padding: 24,
+        alignItems: 'center',
+        marginBottom: 24,
+        shadowColor: '#F59E0B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+        elevation: 6,
+    },
+    yourTurnIconRow: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#FEF3C7',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+        borderWidth: 2,
+        borderColor: '#FDE68A',
+    },
+    yourTurnHeading: {
+        fontSize: 26,
+        fontWeight: 'bold',
+        color: '#92400E',
+        letterSpacing: 0.5,
+        marginBottom: 4,
+    },
+    yourTurnSub: {
+        fontSize: 13,
+        color: '#B45309',
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    yourTurnNumRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: '#F59E0B',
+        paddingHorizontal: 20,
+        paddingVertical: 8,
+        borderRadius: 999,
+    },
+    yourTurnNumLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: 'white',
+        letterSpacing: 1,
+    },
+    yourTurnNum: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: 'white',
     },
     cancelButton: {
         width: '100%',

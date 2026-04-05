@@ -1,8 +1,11 @@
 import { supabase } from './supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ServiceType } from '../components/patient/selectservice';
+import { ServiceType } from '../components/patient/patient/selectservice';
 
 export type QueueStatus = 'Pending' | 'Waiting' | 'Serving' | 'Completed' | 'No Show' | 'Cancelled';
+
+// DB statuses that constitute an "active" queue the user must finish before getting a new one
+const ACTIVE_DB_STATUSES = ['WAITING', 'SERVING', 'PENDING_SYNC'];
 
 export interface QueueTicketData {
     id?: string;
@@ -16,6 +19,10 @@ export interface QueueTicketData {
 }
 
 const STORAGE_KEY = '@barriomed_queue_ticket';
+
+// Statuses that mean the ticket is no longer active.
+// A cached ticket with any of these statuses must NOT be restored as an active queue.
+const TERMINAL_STATUSES: QueueStatus[] = ['Completed', 'Cancelled', 'No Show'];
 
 const generateUUID = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -71,8 +78,65 @@ const mapDbServiceType = (dbType: string): ServiceType => {
 };
 
 export const queueService = {
+
+    /**
+     * Checks Supabase for an existing active queue entry for this user.
+     * "Active" means WAITING, SERVING, or PENDING_SYNC.
+     * Returns the hydrated QueueTicketData if one exists, or null.
+     * This always hits the server so it cannot be tricked by a stale local cache.
+     */
+    async getActiveQueue(userId: string): Promise<QueueTicketData | null> {
+        try {
+            const { data, error } = await supabase
+                .from('queue_transactions')
+                .select('*')
+                .eq('user_id', userId)
+                .in('status', ACTIVE_DB_STATUSES)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle();
+
+            if (error || !data) return null;
+
+            const startOfDay = new Date();
+            startOfDay.setHours(0, 0, 0, 0);
+
+            const { count } = await supabase
+                .from('queue_transactions')
+                .select('*', { count: 'exact', head: true })
+                .eq('status', 'WAITING')
+                .gte('created_at', startOfDay.toISOString())
+                .lt('queue_number', data.queue_number);
+
+            const peopleAhead = count ?? 0;
+
+            return {
+                id: data.ticket_id,
+                queueNumber: data.queue_number,
+                serviceType: mapDbServiceType(data.service_type),
+                status: mapDbStatusToUi(data.status),
+                nowServing: Math.max(0, data.queue_number - peopleAhead - 1),
+                peopleAhead,
+                estWaitTime: `${peopleAhead * 15} mins`,
+            };
+        } catch (e) {
+            console.warn('getActiveQueue error:', e);
+            return null;
+        }
+    },
+
     // A-FR-01: Get Ticket (Optimistic offline & online sync)
-    async requestTicket(userId: string, serviceType: ServiceType): Promise<QueueTicketData> {
+    // Guard: if the user already has an active queue, return it instead of creating a new one.
+    async requestTicket(userId: string, serviceType: ServiceType): Promise<QueueTicketData & { alreadyActive?: boolean }> {
+        // ── Active-queue guard (server-side check) ──────────────────────────────
+        const existing = await this.getActiveQueue(userId);
+        if (existing) {
+            // Persist the existing ticket locally so the UI is consistent
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+            return { ...existing, alreadyActive: true };
+        }
+        // ───────────────────────────────────────────────────────────────────────
+
         const ticketId = generateUUID();
         const initialTicket: QueueTicketData = {
             id: ticketId,
@@ -88,6 +152,9 @@ export const queueService = {
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(initialTicket));
 
             const dbServiceType = mapServiceTypeDb(serviceType);
+            // NOTE: p_created_at is intentionally omitted so the RPC always uses
+            // the server-side now(), eliminating client clock-skew as a root cause
+            // of wrong day-boundary calculations.
             const { data, error } = await supabase.rpc('assign_queue_number', {
                 p_ticket_id: ticketId,
                 p_user_id: userId,
@@ -135,8 +202,16 @@ export const queueService = {
     async syncPendingTicket(userId: string): Promise<QueueTicketData | null> {
        const cached = await AsyncStorage.getItem(STORAGE_KEY);
        if (!cached) return null;
-       
+
        const ticket: QueueTicketData = JSON.parse(cached);
+
+       // Skip terminal tickets — they have already been handled by the onStatusUpdate
+       // callback and should not be re-synced or displayed.
+       if (TERMINAL_STATUSES.includes(ticket.status as QueueStatus)) {
+           await AsyncStorage.removeItem(STORAGE_KEY);
+           return null;
+       }
+
        if (ticket.status === 'Pending') {
            return this.requestTicket(userId, ticket.serviceType);
        }
@@ -145,7 +220,18 @@ export const queueService = {
 
     async getLocalTicket(): Promise<QueueTicketData | null> {
         const cached = await AsyncStorage.getItem(STORAGE_KEY);
-        return cached ? JSON.parse(cached) : null;
+        if (!cached) return null;
+
+        const ticket: QueueTicketData = JSON.parse(cached);
+
+        // Do NOT surface a completed/cancelled ticket as active.
+        // This prevents a stale cache from re-displaying a finished queue on app relaunch.
+        if (TERMINAL_STATUSES.includes(ticket.status as QueueStatus)) {
+            await AsyncStorage.removeItem(STORAGE_KEY);
+            return null;
+        }
+
+        return ticket;
     },
 
     async updateLocalTicket(ticket: QueueTicketData) {
@@ -154,6 +240,37 @@ export const queueService = {
 
     async clearLocalTicket() {
         await AsyncStorage.removeItem(STORAGE_KEY);
+    },
+
+    // Cancels the ticket in the DB (marks CANCELLED) then clears local storage.
+    // Previously only AsyncStorage was cleared, leaving ghost WAITING rows in Supabase
+    // that caused all subsequent users to get inflated queue numbers.
+    async cancelTicket(userId: string): Promise<boolean> {
+        const cached = await AsyncStorage.getItem(STORAGE_KEY);
+        if (!cached) return false;
+
+        const ticket: QueueTicketData = JSON.parse(cached);
+        if (!ticket.id) {
+            await AsyncStorage.removeItem(STORAGE_KEY);
+            return false;
+        }
+
+        try {
+            const { data, error } = await supabase.rpc('cancel_ticket', {
+                p_ticket_id: ticket.id,
+                p_user_id: userId
+            });
+
+            if (error) {
+                console.warn('cancel_ticket RPC error:', error.message);
+                // Still clear local storage even if DB call fails to avoid stuck state
+            }
+        } catch (e) {
+            console.warn('cancel_ticket network error:', e);
+        }
+
+        await AsyncStorage.removeItem(STORAGE_KEY);
+        return true;
     },
     
     // A-FR-02: Real-Time Queue Monitoring

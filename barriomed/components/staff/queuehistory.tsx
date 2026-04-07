@@ -3,7 +3,7 @@ import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react
 import { Feather } from '@expo/vector-icons';
 import { queueService } from '../../lib/queueService';
 import { PatientQueueItem, Patient } from './patientqueuecall';
-import { ServiceType } from '../patient/selectservice';
+import { ServiceType } from '../patient/patient/selectservice';
 
 export function QueueHistory() {
     const [history, setHistory] = useState<Patient[]>([]);
@@ -21,7 +21,7 @@ export function QueueHistory() {
                 status: 'completed',
                 arrivalTime: new Date(item.completed_at || item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             }));
-            
+
             setHistory(mappedHistory);
         } catch (error) {
             console.error('Error fetching queue history:', error);

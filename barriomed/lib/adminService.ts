@@ -303,6 +303,44 @@ export const adminService = {
         return () => { supabase.removeChannel(channel); };
     },
 
+    async deleteInventoryItem(params: {
+        itemId: string;
+        genericName: string;
+        adminId: string;
+        adminName: string;
+    }): Promise<{ success: boolean; error?: string }> {
+        // .select('item_id') is required — without it, a RLS-blocked DELETE
+        // returns { data: null, error: null } which is indistinguishable from success.
+        const { data, error } = await supabase
+            .from('inventory')
+            .delete()
+            .eq('item_id', params.itemId)
+            .select('item_id');
+
+        if (error) {
+            console.error('[adminService] deleteInventoryItem error:', error);
+            return { success: false, error: error.message };
+        }
+
+        if (!data || data.length === 0) {
+            console.warn('[adminService] deleteInventoryItem: no rows deleted – RLS may have blocked the operation');
+            return {
+                success: false,
+                error: 'Could not delete item. You may not have the required permissions.',
+            };
+        }
+
+        await logAdminAction({
+            adminId: params.adminId,
+            action: `Deleted inventory item: "${params.genericName}"`,
+            resourceType: 'inventory',
+            resourceId: params.itemId,
+            metadata: { deleted_by: params.adminName },
+        });
+
+        return { success: true };
+    },
+
     // ── Queue ─────────────────────────────────────────────────────────────────
 
     async fetchActiveQueue() {

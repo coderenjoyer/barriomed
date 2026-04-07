@@ -6,7 +6,7 @@ import { PatientQueueItem, Patient } from './patientqueuecall'
 import { queueService, QueueStatus } from '../../lib/queueService'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../lib/AuthContext'
-import { ServiceType } from '../patient/selectservice'
+import { ServiceType } from '../patient/patient/selectservice'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -15,11 +15,11 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 export function QueueCommander() {
     const navigation = useNavigation()
     const { userProfile, session } = useAuth()
-    
+
     // Auth mappings
     const myStaffId = userProfile?.id ?? session?.user?.id ?? 'unknown'
     const myFirstName = userProfile?.first_name ?? session?.user?.user_metadata?.first_name ?? ''
-    const myLastName  = userProfile?.last_name  ?? session?.user?.user_metadata?.last_name  ?? ''
+    const myLastName = userProfile?.last_name ?? session?.user?.user_metadata?.last_name ?? ''
     const myStaffName = [myFirstName, myLastName].filter(Boolean).join(' ') || 'Health Staff'
 
     // Realtime Presence States
@@ -421,36 +421,36 @@ export function QueueCommander() {
                 <View className="w-full flex-col gap-6 lg:w-[400px]">
                     <View className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex-col gap-4">
                         <View className="flex-col gap-2 mb-2">
-                             <View className="flex-row items-center justify-between">
-                                 <Text className="font-bold text-gray-900 text-lg">Queue Controls</Text>
-                                 <View className={`px-2 py-1 rounded-full border ${isController ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
-                                     <Text className={`text-[10px] font-bold uppercase tracking-wider ${isController ? 'text-emerald-700' : 'text-amber-700'}`}>
-                                         {isController ? 'Controller Mode' : 'View Only'}
-                                     </Text>
-                                 </View>
-                             </View>
+                            <View className="flex-row items-center justify-between">
+                                <Text className="font-bold text-gray-900 text-lg">Queue Controls</Text>
+                                <View className={`px-2 py-1 rounded-full border ${isController ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+                                    <Text className={`text-[10px] font-bold uppercase tracking-wider ${isController ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                        {isController ? 'Controller Mode' : 'View Only'}
+                                    </Text>
+                                </View>
+                            </View>
 
-                             {!isController ? (
-                                 <View className="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex-col gap-3 mt-1">
-                                     <Text className="text-gray-600 text-xs font-medium text-center">
-                                         {activeController ? `${activeController.name} is currently managing the queue.` : 'No one is managing the queue right now.'}
-                                     </Text>
-                                     <TouchableOpacity 
-                                          onPress={requestControl}
-                                          className="w-full py-2.5 bg-teal-600 rounded-xl flex-row justify-center items-center gap-2"
-                                     >
-                                          <Feather name="lock" size={14} color="white" />
-                                          <Text className="text-white font-bold text-sm">Take Control</Text>
-                                     </TouchableOpacity>
-                                 </View>
-                             ) : (
-                                 <View className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex-row justify-between items-center mt-1 mb-2">
-                                     <Text className="text-emerald-800 text-xs font-semibold">You hold the queue lock</Text>
-                                     <TouchableOpacity onPress={releaseControl} className="bg-white px-2 py-1 rounded-lg border border-emerald-200">
-                                         <Text className="text-emerald-700 text-[10px] font-bold uppercase">Release</Text>
-                                     </TouchableOpacity>
-                                 </View>
-                             )}
+                            {!isController ? (
+                                <View className="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex-col gap-3 mt-1">
+                                    <Text className="text-gray-600 text-xs font-medium text-center">
+                                        {activeController ? `${activeController.name} is currently managing the queue.` : 'No one is managing the queue right now.'}
+                                    </Text>
+                                    <TouchableOpacity
+                                        onPress={requestControl}
+                                        className="w-full py-2.5 bg-teal-600 rounded-xl flex-row justify-center items-center gap-2"
+                                    >
+                                        <Feather name="lock" size={14} color="white" />
+                                        <Text className="text-white font-bold text-sm">Take Control</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : (
+                                <View className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 flex-row justify-between items-center mt-1 mb-2">
+                                    <Text className="text-emerald-800 text-xs font-semibold">You hold the queue lock</Text>
+                                    <TouchableOpacity onPress={releaseControl} className="bg-white px-2 py-1 rounded-lg border border-emerald-200">
+                                        <Text className="text-emerald-700 text-[10px] font-bold uppercase">Release</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         </View>
 
                         {/* Call Next Button - Primary action */}
@@ -488,10 +488,9 @@ export function QueueCommander() {
                             <TouchableOpacity
                                 onPress={handleCompleteAndCallNext}
                                 disabled={isActionLoading || !isController}
-                                className={`w-full py-4 rounded-2xl flex-row items-center justify-center gap-2 border-2 ${
-                                    !isController ? 'border-gray-200 bg-gray-50 opacity-60' : 
-                                    (isActionLoading ? 'border-emerald-200 bg-emerald-50' : 'border-emerald-300 bg-emerald-50')
-                                }`}
+                                className={`w-full py-4 rounded-2xl flex-row items-center justify-center gap-2 border-2 ${!isController ? 'border-gray-200 bg-gray-50 opacity-60' :
+                                        (isActionLoading ? 'border-emerald-200 bg-emerald-50' : 'border-emerald-300 bg-emerald-50')
+                                    }`}
                             >
                                 {isActionLoading ? (
                                     <ActivityIndicator color={!isController ? "#9CA3AF" : "#059669"} size="small" />
@@ -572,7 +571,7 @@ export function QueueCommander() {
                                                     {p.name}
                                                 </Text>
                                             </View>
-                                            <TouchableOpacity 
+                                            <TouchableOpacity
                                                 onPress={() => handleReinsert(p.id)}
                                                 disabled={!isController}
                                             >

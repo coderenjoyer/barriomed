@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { StockToggle } from './StockToggle';
-import { RestockLog } from './RestockLog';
 import { inventoryService, InventoryItem, StockStatus } from '../../../lib/inventoryService';
 
 export function InventoryMaster() {
@@ -93,17 +92,36 @@ export function InventoryMaster() {
     };
 
     const handleDeleteClick = (id: string) => {
+        // Alert.alert is a no-op on web — use window.confirm instead
+        if (Platform.OS === 'web') {
+            const item = inventory.find(i => i.item_id === id);
+            const name = item ? `"${item.generic_name}"` : 'this item';
+            const confirmed = window.confirm(`Delete ${name}? This action cannot be undone.`);
+            if (!confirmed) return;
+
+            (async () => {
+                const result = await inventoryService.deleteInventoryItem(id);
+                if (result.success) {
+                    setInventory(prev => prev.filter(i => i.item_id !== id));
+                } else {
+                    window.alert('Error: ' + (result.error ?? 'Failed to delete item.'));
+                }
+            })();
+            return;
+        }
+
+        // Mobile: use Alert.alert
         Alert.alert('Delete Medicine', 'Are you sure you want to delete this medicine?', [
             { text: 'Cancel', style: 'cancel' },
-            { 
-                text: 'Delete', 
-                style: 'destructive', 
+            {
+                text: 'Delete',
+                style: 'destructive',
                 onPress: async () => {
-                    const success = await inventoryService.deleteInventoryItem(id);
-                    if (success) {
+                    const result = await inventoryService.deleteInventoryItem(id);
+                    if (result.success) {
                         setInventory(prev => prev.filter(i => i.item_id !== id));
                     } else {
-                        Alert.alert('Error', 'Failed to delete item.');
+                        Alert.alert('Error', result.error ?? 'Failed to delete item.');
                     }
                 }
             }
@@ -243,14 +261,17 @@ export function InventoryMaster() {
                         </View>
 
                         {/* Table/Grid */}
-                        <View className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex-1 min-h-[400px]">
+                        <View 
+                            className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex-1 min-h-[400px]"
+                            style={Platform.OS === 'web' ? { maxHeight: 'calc(100vh - 260px)' as any } : undefined}
+                        >
                             {loading ? (
                                 <View className="flex-1 justify-center items-center">
                                     <ActivityIndicator size="large" color="#0D9488" />
                                 </View>
                             ) : (
-                                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                                    <View className="w-full min-w-[700px]">
+                                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1 }}>
+                                    <View className="w-full min-w-[700px] flex-1">
                                         {/* Header */}
                                         <View className="flex-row bg-gray-50 border-b border-gray-100 p-4">
                                             <View className="w-12 items-center justify-center">
@@ -328,8 +349,6 @@ export function InventoryMaster() {
 
                     {/* RIGHT PANEL - STATS */}
                     <View className="w-full lg:w-[320px] flex-col gap-6">
-                        <RestockLog />
-
                         {/* Stats Card */}
                         <View className="bg-teal-700 rounded-2xl p-6 shadow-lg">
                             <View className="flex-row items-center gap-2 mb-4">

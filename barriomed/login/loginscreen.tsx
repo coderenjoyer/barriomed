@@ -292,7 +292,7 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
             </View>
 
             <View style={styles.roleGrid}>
-                {roles.filter(r => Platform.OS === 'web' || r.id !== 'admin').map(role => {
+                {roles.filter(r => (Platform.OS === 'web' ? r.id !== 'patient' : r.id !== 'admin')).map(role => {
                     const active = selectedRole === role.id;
                     return (
                         <TouchableOpacity

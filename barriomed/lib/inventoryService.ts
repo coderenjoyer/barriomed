@@ -127,20 +127,31 @@ export const inventoryService = {
     },
 
     /**
-     * Staff only: Delete an inventory item
+     * Staff / Admin only: Delete an inventory item.
+     * Uses .select('id') so a silent RLS-blocked delete is detectable
+     * (Supabase returns { data: [], error: null } when RLS blocks DELETE).
      */
-    async deleteInventoryItem(item_id: string): Promise<boolean> {
-        const { error } = await supabase
+    async deleteInventoryItem(item_id: string): Promise<{ success: boolean; error?: string }> {
+        const { data, error } = await supabase
             .from('inventory')
             .delete()
-            .eq('item_id', item_id);
+            .eq('item_id', item_id)
+            .select('item_id');
 
         if (error) {
-            console.error('Failed to delete inventory item:', error);
-            return false;
+            console.error('[inventoryService] deleteInventoryItem error:', error);
+            return { success: false, error: error.message };
         }
 
-        return true;
+        if (!data || data.length === 0) {
+            console.warn('[inventoryService] deleteInventoryItem: no rows deleted – RLS may have blocked the operation');
+            return {
+                success: false,
+                error: 'Could not delete item. Check your permissions or try again.',
+            };
+        }
+
+        return { success: true };
     },
 
     /**

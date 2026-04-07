@@ -7,6 +7,7 @@ import {
     ScrollView,
     ActivityIndicator,
     Alert,
+    Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { PatientLookup } from '../components/doctor/patientsearch';
@@ -24,6 +25,9 @@ import {
     createMedicalRecord,
     updateMedicalRecord,
     deleteMedicalRecord,
+    deleteConsultation,
+    deletePrescription,
+    crossPlatformConfirm,
     type PatientSummary,
     type ConsultationRecord,
     type MedicalRecord,
@@ -181,24 +185,42 @@ export function DoctorDashboard({ onLogout }: { onLogout: () => void }) {
     };
 
     const handleDeleteRecord = (record: MedicalRecord) => {
-        Alert.alert(
+        crossPlatformConfirm(
             'Delete Record',
             `Delete "${record.title}"? This cannot be undone.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: async () => {
-                        const result = await deleteMedicalRecord(record.id);
-                        if (result.success) {
-                            setMedicalRecords((prev) => prev.filter((r) => r.id !== record.id));
-                        } else {
-                            Alert.alert('Error', result.error ?? 'Failed to delete record.');
-                        }
-                    },
-                },
-            ]
+            async () => {
+                const result = await deleteMedicalRecord(record.id);
+                if (result.success) {
+                    // Optimistic UI: remove immediately from local state
+                    setMedicalRecords((prev) => prev.filter((r) => r.id !== record.id));
+                } else {
+                    if (Platform.OS === 'web') {
+                        window.alert('Error: ' + (result.error ?? 'Failed to delete record.'));
+                    } else {
+                        Alert.alert('Error', result.error ?? 'Failed to delete record.');
+                    }
+                }
+            },
+        );
+    };
+
+    const handleDeleteConsultation = (record: ConsultationRecord) => {
+        crossPlatformConfirm(
+            'Delete Consultation',
+            `Delete consultation "${record.diagnosis}"? This cannot be undone.`,
+            async () => {
+                const result = await deleteConsultation(record.id);
+                if (result.success) {
+                    // Optimistic UI: remove immediately from local state
+                    setConsultations((prev) => prev.filter((c) => c.id !== record.id));
+                } else {
+                    if (Platform.OS === 'web') {
+                        window.alert('Error: ' + (result.error ?? 'Failed to delete consultation.'));
+                    } else {
+                        Alert.alert('Error', result.error ?? 'Failed to delete consultation.');
+                    }
+                }
+            },
         );
     };
 
@@ -474,7 +496,11 @@ export function DoctorDashboard({ onLogout }: { onLogout: () => void }) {
                             {isDataLoading ? (
                                 <ActivityIndicator color="#0D9488" style={{ paddingVertical: 40 }} />
                             ) : (
-                                <ConsultationHistory history={consultations} />
+                                <ConsultationHistory
+                                    history={consultations}
+                                    showPatientName={false}
+                                    onDelete={handleDeleteConsultation}
+                                />
                             )}
                         </ScrollView>
                     )}

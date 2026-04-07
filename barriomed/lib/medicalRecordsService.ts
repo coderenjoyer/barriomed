@@ -1,4 +1,34 @@
 import { supabase } from './supabase';
+import { Alert, Platform } from 'react-native';
+
+// ---------------------------------------------------------------------------
+// Cross-platform confirmation helper
+// ---------------------------------------------------------------------------
+/**
+ * Shows a confirmation dialog.
+ * - On web: uses window.confirm (Alert.alert is a no-op in browsers).
+ * - On mobile: uses Alert.alert with a destructive action button.
+ *
+ * @param title   Dialog title
+ * @param message Body text
+ * @param onConfirm Callback invoked when the user presses OK / Confirm
+ */
+export function crossPlatformConfirm(
+    title: string,
+    message: string,
+    onConfirm: () => void,
+): void {
+    if (Platform.OS === 'web') {
+        // window.confirm is synchronous on web
+        const ok = window.confirm(`${title}\n\n${message}`);
+        if (ok) onConfirm();
+        return;
+    }
+    Alert.alert(title, message, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onConfirm },
+    ]);
+}
 
 // The single canonical value that identifies a patient row in public.users.
 // All queries that touch patient-scoped data MUST filter on this.
@@ -291,6 +321,56 @@ export async function deleteMedicalRecord(
         return {
             success: false,
             error: 'Could not delete the record. Make sure you have the correct permissions.',
+        };
+    }
+
+    return { success: true };
+}
+
+export async function deletePrescription(
+    prescriptionId: string,
+): Promise<{ success: boolean; error?: string }> {
+    const { data, error } = await supabase
+        .from('prescriptions')
+        .delete()
+        .eq('id', prescriptionId)
+        .select('id');
+
+    if (error) {
+        console.error('[deletePrescription] error:', error);
+        return { success: false, error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+        console.warn('[deletePrescription] no rows deleted – RLS may have blocked the operation');
+        return {
+            success: false,
+            error: 'Could not delete the prescription. Make sure you have the correct permissions.',
+        };
+    }
+
+    return { success: true };
+}
+
+export async function deleteConsultation(
+    consultationId: string,
+): Promise<{ success: boolean; error?: string }> {
+    const { data, error } = await supabase
+        .from('consultations')
+        .delete()
+        .eq('id', consultationId)
+        .select('id');
+
+    if (error) {
+        console.error('[deleteConsultation] error:', error);
+        return { success: false, error: error.message };
+    }
+
+    if (!data || data.length === 0) {
+        console.warn('[deleteConsultation] no rows deleted – RLS may have blocked the operation');
+        return {
+            success: false,
+            error: 'Could not delete the consultation. Make sure you have the correct permissions.',
         };
     }
 

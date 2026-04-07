@@ -9,7 +9,7 @@ import {
     Platform,
     UIManager,
 } from 'react-native'
-import { Calendar, User, ChevronDown, ChevronUp, FileText, Pill } from 'lucide-react-native'
+import { Calendar, User, ChevronDown, ChevronUp, FileText, Pill, Trash2 } from 'lucide-react-native'
 import type { ConsultationRecord } from '../../lib/medicalRecordsService'
 
 // Enable LayoutAnimation on Android
@@ -21,9 +21,11 @@ interface ConsultationHistoryProps {
     history: ConsultationRecord[]
     /** If true, shows patient name rather than doctor name (doctor's own history view) */
     showPatientName?: boolean
+    /** Optional delete handler. When provided, a delete button appears on each record. */
+    onDelete?: (record: ConsultationRecord) => void
 }
 
-export function ConsultationHistory({ history, showPatientName = false }: ConsultationHistoryProps) {
+export function ConsultationHistory({ history, showPatientName = false, onDelete }: ConsultationHistoryProps) {
     const [expandedId, setExpandedId] = useState<string | null>(null)
 
     const handleToggle = (id: string) => {
@@ -106,11 +108,22 @@ export function ConsultationHistory({ history, showPatientName = false }: Consul
                                             </View>
                                         )}
                                     </View>
-                                    {expandedId === record.id ? (
-                                        <ChevronUp size={16} color="#9CA3AF" />
-                                    ) : (
-                                        <ChevronDown size={16} color="#9CA3AF" />
-                                    )}
+                                    <View style={styles.recordActions}>
+                                        {onDelete && (
+                                            <TouchableOpacity
+                                                onPress={() => onDelete(record)}
+                                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                style={styles.deleteButton}
+                                            >
+                                                <Trash2 size={14} color="#EF4444" />
+                                            </TouchableOpacity>
+                                        )}
+                                        {expandedId === record.id ? (
+                                            <ChevronUp size={16} color="#9CA3AF" />
+                                        ) : (
+                                            <ChevronDown size={16} color="#9CA3AF" />
+                                        )}
+                                    </View>
                                 </TouchableOpacity>
 
                                 {/* Expanded notes */}
@@ -273,6 +286,23 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '600',
         color: '#0D9488',
+    },
+
+    // Record actions row (chevron + optional delete)
+    recordActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        flexShrink: 0,
+    },
+    deleteButton: {
+        padding: 4,
+        borderRadius: 8,
+        backgroundColor: '#FEF2F2',
+        borderWidth: 1,
+        borderColor: '#FEE2E2',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 
     // Expanded notes

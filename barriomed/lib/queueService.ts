@@ -25,7 +25,7 @@ const STORAGE_KEY = '@barriomed_queue_ticket';
 const TERMINAL_STATUSES: QueueStatus[] = ['Completed', 'Cancelled', 'No Show'];
 
 const generateUUID = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
         var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
     });
@@ -162,32 +162,32 @@ export const queueService = {
             });
 
             if (!error && data && data.length > 0) {
-                 const result = data[0];
-                 
-                 // Get now serving for EWT calculation
-                 const startOfDay = new Date();
-                 startOfDay.setHours(0, 0, 0, 0);
+                const result = data[0];
 
-                 // find the specific serving ticket count/number or just people ahead
-                 const { count } = await supabase
+                // Get now serving for EWT calculation
+                const startOfDay = new Date();
+                startOfDay.setHours(0, 0, 0, 0);
+
+                // find the specific serving ticket count/number or just people ahead
+                const { count } = await supabase
                     .from('queue_transactions')
                     .select('*', { count: 'exact', head: true })
                     .eq('status', 'WAITING')
                     .gte('created_at', startOfDay.toISOString())
                     .lt('queue_number', result.queue_number);
 
-                 const peopleAhead = count || 0;
-                 const confirmedTicket: QueueTicketData = {
-                     id: result.ticket_id,
-                     queueNumber: result.queue_number,
-                     serviceType: serviceType,
-                     status: mapDbStatusToUi(result.status),
-                     nowServing: Math.max(0, result.queue_number - peopleAhead - 1),
-                     peopleAhead: peopleAhead,
-                     estWaitTime: `${peopleAhead * 15} mins` // 15 mins avg wait time
-                 };
-                 await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(confirmedTicket));
-                 return confirmedTicket;
+                const peopleAhead = count || 0;
+                const confirmedTicket: QueueTicketData = {
+                    id: result.ticket_id,
+                    queueNumber: result.queue_number,
+                    serviceType: serviceType,
+                    status: mapDbStatusToUi(result.status),
+                    nowServing: Math.max(0, result.queue_number - peopleAhead - 1),
+                    peopleAhead: peopleAhead,
+                    estWaitTime: `${peopleAhead * 15} mins` // 15 mins avg wait time
+                };
+                await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(confirmedTicket));
+                return confirmedTicket;
             } else {
                 console.warn('RPC Error:', error?.message);
             }
@@ -200,6 +200,7 @@ export const queueService = {
 
     // Silently sync pending ticket on connectivity restore (A-BL-02)
     async syncPendingTicket(userId: string): Promise<QueueTicketData | null> {
+<<<<<<< Updated upstream
        const cached = await AsyncStorage.getItem(STORAGE_KEY);
        if (!cached) return null;
 
@@ -216,6 +217,16 @@ export const queueService = {
            return this.requestTicket(userId, ticket.serviceType);
        }
        return ticket;
+=======
+        const cached = await AsyncStorage.getItem(STORAGE_KEY);
+        if (!cached) return null;
+
+        const ticket: QueueTicketData = JSON.parse(cached);
+        if (ticket.status === 'Pending') {
+            return this.requestTicket(userId, ticket.serviceType);
+        }
+        return ticket;
+>>>>>>> Stashed changes
     },
 
     async getLocalTicket(): Promise<QueueTicketData | null> {
@@ -242,6 +253,7 @@ export const queueService = {
         await AsyncStorage.removeItem(STORAGE_KEY);
     },
 
+<<<<<<< Updated upstream
     // Cancels the ticket in the DB (marks CANCELLED) then clears local storage.
     // Previously only AsyncStorage was cleared, leaving ghost WAITING rows in Supabase
     // that caused all subsequent users to get inflated queue numbers.
@@ -273,9 +285,11 @@ export const queueService = {
         return true;
     },
     
+=======
+>>>>>>> Stashed changes
     // A-FR-02: Real-Time Queue Monitoring
     subscribeToQueue(
-        serviceType: string, 
+        serviceType: string,
         userId: string,
         onNowServingUpdate: (nowServing: number) => void,
         onStatusUpdate: (status: QueueStatus) => void
@@ -285,23 +299,23 @@ export const queueService = {
         startOfDay.setHours(0, 0, 0, 0);
 
         const globalSub = supabase
-          .channel(`public:queue_transactions`)
-          .on(
-              'postgres_changes',
-              { event: 'UPDATE', schema: 'public', table: 'queue_transactions' },
-              (payload) => {
-                  if (payload.new.status === 'SERVING') {
-                      onNowServingUpdate(payload.new.queue_number);
-                  }
-                  if (payload.new.user_id === userId && payload.new.status) {
-                      onStatusUpdate(mapDbStatusToUi(payload.new.status));
-                  }
-              }
-          )
-          .subscribe();
+            .channel(`public:queue_transactions`)
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'queue_transactions' },
+                (payload) => {
+                    if (payload.new.status === 'SERVING') {
+                        onNowServingUpdate(payload.new.queue_number);
+                    }
+                    if (payload.new.user_id === userId && payload.new.status) {
+                        onStatusUpdate(mapDbStatusToUi(payload.new.status));
+                    }
+                }
+            )
+            .subscribe();
 
         return () => {
-             supabase.removeChannel(globalSub);
+            supabase.removeChannel(globalSub);
         };
     },
 
@@ -327,12 +341,12 @@ export const queueService = {
 
         // Map data to the expected UI format
         return (data || []).map((item: any) => ({
-             id: item.ticket_id,
-             queue_number: item.queue_number,
-             patient_name: item.users ? `${item.users.first_name} ${item.users.last_name}` : (item.patient_name || 'Walk-in Patient'),
-             service_type: mapDbServiceType(item.service_type),
-             status: mapDbStatusToUi(item.status),
-             created_at: item.created_at
+            id: item.ticket_id,
+            queue_number: item.queue_number,
+            patient_name: item.users ? `${item.users.first_name} ${item.users.last_name}` : (item.patient_name || 'Walk-in Patient'),
+            service_type: mapDbServiceType(item.service_type),
+            status: mapDbStatusToUi(item.status),
+            created_at: item.created_at
         }));
     },
 
@@ -351,13 +365,13 @@ export const queueService = {
         }
 
         return (data || []).map((item: any) => ({
-             id: item.ticket_id,
-             queue_number: item.queue_number,
-             patient_name: item.users ? `${item.users.first_name} ${item.users.last_name}` : (item.patient_name || 'Walk-in Patient'),
-             service_type: mapDbServiceType(item.service_type),
-             status: mapDbStatusToUi(item.status),
-             created_at: item.created_at,
-             completed_at: item.completed_at
+            id: item.ticket_id,
+            queue_number: item.queue_number,
+            patient_name: item.users ? `${item.users.first_name} ${item.users.last_name}` : (item.patient_name || 'Walk-in Patient'),
+            service_type: mapDbServiceType(item.service_type),
+            status: mapDbStatusToUi(item.status),
+            created_at: item.created_at,
+            completed_at: item.completed_at
         }));
     },
 
@@ -397,8 +411,8 @@ export const queueService = {
         const dbServiceType = mapServiceTypeDb(serviceType);
         // We will assume "Walk-ins" might need a dummy user_id in the strict schema, 
         // but if schema allows NULL or we just create a temp UUID for them since it's just a generated ticket.
-        const DUMMY_USER = null; 
-        
+        const DUMMY_USER = null;
+
         const { data, error } = await supabase.rpc('add_walk_in', {
             p_service_type: dbServiceType,
             p_user_id: DUMMY_USER
@@ -430,7 +444,7 @@ export const queueService = {
                 () => onUpdate()
             )
             .subscribe();
-        
+
         return () => {
             supabase.removeChannel(channel);
         };

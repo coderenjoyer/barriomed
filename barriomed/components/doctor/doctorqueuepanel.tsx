@@ -17,7 +17,7 @@ import { PatientQueueItem, Patient } from '../staff/patientqueuecall';
 import { queueService } from '../../lib/queueService';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthContext';
-import { ServiceType } from '../patient/selectservice';
+import { ServiceType } from '../patient/patient/selectservice';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -32,27 +32,27 @@ export function DoctorQueuePanel() {
     const { userProfile, session } = useAuth();
 
     // Identity
-    const myDoctorId   = userProfile?.id ?? session?.user?.id ?? 'unknown';
-    const myFirstName  = userProfile?.first_name ?? session?.user?.user_metadata?.first_name ?? '';
-    const myLastName   = userProfile?.last_name  ?? session?.user?.user_metadata?.last_name  ?? '';
+    const myDoctorId = userProfile?.id ?? session?.user?.id ?? 'unknown';
+    const myFirstName = userProfile?.first_name ?? session?.user?.user_metadata?.first_name ?? '';
+    const myLastName = userProfile?.last_name ?? session?.user?.user_metadata?.last_name ?? '';
     const myDoctorName = [myFirstName, myLastName].filter(Boolean).join(' ') || 'Doctor';
 
     // Controller Presence
     const [activeController, setActiveController] = useState<{ id: string; name: string } | null>(null);
-    const [presenceChannel, setPresenceChannel]   = useState<any>(null);
+    const [presenceChannel, setPresenceChannel] = useState<any>(null);
 
     // Queue Data
-    const [patients, setPatients]             = useState<Patient[]>([]);
+    const [patients, setPatients] = useState<Patient[]>([]);
     const [missedPatients, setMissedPatients] = useState<Patient[]>([]);
-    const [showMissed, setShowMissed]         = useState(false);
-    const [isLoading, setIsLoading]           = useState(true);
+    const [showMissed, setShowMissed] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [isActionLoading, setIsActionLoading] = useState(false);
-    const [refreshing, setRefreshing]         = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const currentPatient   = patients.find((p) => p.status === 'serving');
-    const waitingPatients  = patients.filter((p) => p.status === 'pending' || p.status === 'arrived');
-    const nextPatient      = waitingPatients.length > 0 ? waitingPatients[0] : null;
-    const isController     = activeController?.id === myDoctorId;
+    const currentPatient = patients.find((p) => p.status === 'serving');
+    const waitingPatients = patients.filter((p) => p.status === 'pending' || p.status === 'arrived');
+    const nextPatient = waitingPatients.length > 0 ? waitingPatients[0] : null;
+    const isController = activeController?.id === myDoctorId;
 
     // ── Fetch Queue ──────────────────────────────────────────────────────────
     const fetchQueue = useCallback(async () => {
@@ -81,11 +81,11 @@ export function DoctorQueuePanel() {
 
     const mapDbStatusToUi = (status: string): Patient['status'] => {
         switch (status) {
-            case 'Serving':   return 'serving';
-            case 'Waiting':   return 'pending';
-            case 'No Show':   return 'missed';
+            case 'Serving': return 'serving';
+            case 'Waiting': return 'pending';
+            case 'No Show': return 'missed';
             case 'Completed': return 'completed';
-            default:          return 'pending';
+            default: return 'pending';
         }
     };
 
@@ -245,11 +245,11 @@ export function DoctorQueuePanel() {
 
     const getServiceLabel = (type: ServiceType) => {
         switch (type) {
-            case 'checkup':      return 'Check-up';
-            case 'prenatal':     return 'Prenatal';
+            case 'checkup': return 'Check-up';
+            case 'prenatal': return 'Prenatal';
             case 'immunization': return 'Immunization';
-            case 'dental':       return 'Dental';
-            default:             return type;
+            case 'dental': return 'Dental';
+            default: return type;
         }
     };
 
@@ -416,8 +416,8 @@ export function DoctorQueuePanel() {
                     ) : (
                         <>
                             <Feather name="check-circle" size={16} color={isController ? '#059669' : '#9CA3AF'} />
-                            <Feather name="arrow-right"  size={13} color={isController ? '#059669' : '#9CA3AF'} />
-                            <Feather name="mic"          size={16} color={isController ? '#059669' : '#9CA3AF'} />
+                            <Feather name="arrow-right" size={13} color={isController ? '#059669' : '#9CA3AF'} />
+                            <Feather name="mic" size={16} color={isController ? '#059669' : '#9CA3AF'} />
                         </>
                     )}
                     <Text style={[

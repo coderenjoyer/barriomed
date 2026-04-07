@@ -63,7 +63,7 @@ export function DoctorQueuePanel() {
                 queueNumber: item.queue_number,
                 name: item.patient_name || 'Unknown',
                 service: item.service_type as ServiceType,
-                status: mapDbStatusToUi(item.status),
+                status: mapQueueStatusToUi(item.status),
                 arrivalTime: new Date(item.created_at).toLocaleTimeString([], {
                     hour: '2-digit',
                     minute: '2-digit',
@@ -79,12 +79,15 @@ export function DoctorQueuePanel() {
         }
     }, []);
 
-    const mapDbStatusToUi = (status: string): Patient['status'] => {
+    const mapQueueStatusToUi = (status: string): Patient['status'] => {
+        // NOTE: queueService.getQueueList() already returns UI-mapped status strings
+        // (e.g. 'Serving', 'Waiting', 'No Show'). We do NOT remap from raw DB enums here.
         switch (status) {
             case 'Serving': return 'serving';
             case 'Waiting': return 'pending';
             case 'No Show': return 'missed';
             case 'Completed': return 'completed';
+            case 'Pending': return 'pending'; // PENDING_SYNC patients show as pending
             default: return 'pending';
         }
     };

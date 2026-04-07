@@ -79,7 +79,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
         async function loadTicket() {
             if (!userId) return;
 
-            const localData = await queueService.getLocalTicket();
+            const localData = await queueService.getLocalTicket(userId);
             if (localData && isMounted) {
                 setQueueTicket(localData);
                 setSelectedService(localData.serviceType);
@@ -122,7 +122,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                         estWaitTime: `${peopleAhead * 5} mins`
                     };
 
-                    queueService.updateLocalTicket(updated);
+                    queueService.updateLocalTicket(userId, updated);
                     return updated;
                 });
             },
@@ -145,7 +145,7 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
                     // Write the updated status to local storage so we have the
                     // freshest state if the app is backgrounded and resumed.
                     const updated: QueueTicketData = { ...prev, status };
-                    queueService.updateLocalTicket(updated);
+                    queueService.updateLocalTicket(userId, updated);
                     return updated;
                 });
             }
@@ -163,13 +163,13 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
 
         if (status === 'Completed') {
             // Clear local cache and surface the completion modal.
-            queueService.clearLocalTicket();
+            queueService.clearLocalTicket(userId);
             setQueueTicket(null);
             setSelectedService(null);
             setShowCompletionModal(true);
         } else if (status === 'Cancelled') {
             // Cancelled via another device / staff action — just clean up silently.
-            queueService.clearLocalTicket();
+            queueService.clearLocalTicket(userId);
             setQueueTicket(null);
             setSelectedService(null);
             setActiveTab('home');
@@ -204,10 +204,15 @@ export function UserDashboard({ onLogout }: UserDashboardProps) {
     };
 
     const handleCancelQueue = async () => {
-        // cancelTicket marks the row CANCELLED in Supabase first, then clears local storage.
+        // cancelTicket marks the row CANCELLED in Supabase first (using the ticket's DB id
+        // + userId ownership check), then clears local storage.
         // This prevents ghost WAITING rows that would cause subsequent users to receive
         // inflated / duplicated queue numbers.
-        await queueService.cancelTicket(userId);
+        if (queueTicket?.id) {
+            await queueService.cancelTicket(userId, queueTicket.id);
+        } else {
+            await queueService.clearLocalTicket(userId);
+        }
         setQueueTicket(null);
         setSelectedService(null);
         setActiveTab('home');

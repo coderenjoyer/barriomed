@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
     View,
     Text,
@@ -11,9 +11,12 @@ import {
     UIManager,
     ActivityIndicator,
     Image,
+    ScrollView,
 } from 'react-native'
-import { Search, QrCode, User, ChevronRight, RefreshCcw } from 'lucide-react-native'
-import { searchPatients, type PatientSummary } from '../../lib/medicalRecordsService'
+import { Search, QrCode, User, ChevronRight, RefreshCcw, Clock, Zap } from 'lucide-react-native'
+import { Feather } from '@expo/vector-icons'
+import { searchPatients, fetchPatientById, type PatientSummary } from '../../lib/medicalRecordsService'
+import { queueService, type RecentQueuedPatient } from '../../lib/queueService'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true)
@@ -22,6 +25,168 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 interface PatientLookupProps {
     onSelect: (patient: PatientSummary) => void
 }
+
+// ─── Recently Queued Section ──────────────────────────────────────────────────
+
+function RecentQueueSection({ onSelect }: { onSelect: (patient: PatientSummary) => void }) {
+    const [recentPatients, setRecentPatients] = useState<RecentQueuedPatient[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    // Track which item is being loaded (to show per-item spinner)
+    const [loadingId, setLoadingId] = useState<string | null>(null)
+
+    const loadRecent = useCallback(async () => {
+        try {
+            const data = await queueService.getRecentQueuedPatients()
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
+            setRecentPatients(data)
+        } catch (err) {
+            console.error('[RecentQueueSection] load error:', err)
+        } finally {
+            setIsLoading(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        loadRecent()
+        // Realtime: re-fetch whenever queue changes
+        const unsub = queueService.subscribeToStaffQueue(() => loadRecent())
+        return unsub
+    }, [loadRecent])
+
+    const handlePress = async (item: RecentQueuedPatient) => {
+        if (!item.userId) return // Walk-in, no user record
+        setLoadingId(item.ticketId)
+        try {
+            const patient = await fetchPatientById(item.userId)
+            if (patient) {
+                onSelect(patient)
+            }
+        } catch (err) {
+            console.error('[RecentQueueSection] fetchPatient error:', err)
+        } finally {
+            setLoadingId(null)
+        }
+    }
+
+    // Don't render the section at all while loading AND there's nothing yet
+    if (isLoading && recentPatients.length === 0) {
+        return (
+            <View style={rq.sectionWrapper}>
+                <View style={rq.sectionHeader}>
+                    <View style={rq.sectionHeaderLeft}>
+                        <Zap size={14} color="#0D9488" />
+                        <Text style={rq.sectionTitle}>Recently Queued</Text>
+                    </View>
+                </View>
+                <View style={rq.loadingRow}>
+                    <ActivityIndicator size="small" color="#0D9488" />
+                    <Text style={rq.loadingText}>Loading queue...</Text>
+                </View>
+            </View>
+        )
+    }
+
+    // No active queue — render nothing (PatientLookup will show default search)
+    if (recentPatients.length === 0) return null
+
+    const getStatusConfig = (status: string) => {
+        switch (status) {
+            case 'Serving':
+                return { label: 'NOW SERVING', bg: '#ECFDF5', text: '#065F46', dot: '#10B981' }
+            case 'Waiting':
+                return { label: 'WAITING', bg: '#EFF6FF', text: '#1E40AF', dot: '#3B82F6' }
+            case 'Pending':
+            default:
+                return { label: 'PENDING', bg: '#FEF3C7', text: '#92400E', dot: '#F59E0B' }
+        }
+    }
+
+    const getInitials = (first: string, last: string) =>
+        `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase() || '?'
+
+    return (
+        <View style={rq.sectionWrapper}>
+            {/* Section Header */}
+            <View style={rq.sectionHeader}>
+                <View style={rq.sectionHeaderLeft}>
+                    <Zap size={14} color="#0D9488" />
+                    <Text style={rq.sectionTitle}>Recently Queued</Text>
+                    <View style={rq.countBadge}>
+                        <Text style={rq.countBadgeText}>{recentPatients.length}</Text>
+                    </View>
+                </View>
+                <Text style={rq.sectionSub}>Active queue patients</Text>
+            </View>
+
+            {/* Queue Items */}
+            <View style={rq.itemList}>
+                {recentPatients.map((item, index) => {
+                    const cfg = getStatusConfig(item.status as string)
+                    const isItemLoading = loadingId === item.ticketId
+                    const isWalkin = !item.userId
+
+                    return (
+                        <TouchableOpacity
+                            key={item.ticketId}
+                            style={[
+                                rq.queueItem,
+                                index === recentPatients.length - 1 && rq.queueItemLast,
+                                isWalkin && rq.queueItemWalkin,
+                            ]}
+                            onPress={() => handlePress(item)}
+                            activeOpacity={isWalkin ? 1 : 0.7}
+                            disabled={isWalkin || isItemLoading}
+                        >
+                            {/* Queue number badge */}
+                            <View style={rq.queueBadge}>
+                                <Text style={rq.queueBadgeText}>#{item.queueNumber}</Text>
+                            </View>
+
+                            {/* Avatar */}
+                            <View style={rq.avatar}>
+                                <Text style={rq.avatarText}>
+                                    {getInitials(item.patientFirstName, item.patientLastName)}
+                                </Text>
+                            </View>
+
+                            {/* Info */}
+                            <View style={rq.itemInfo}>
+                                <Text style={rq.itemName} numberOfLines={1}>
+                                    {item.patientName}
+                                </Text>
+                                {isWalkin && (
+                                    <Text style={rq.walkinLabel}>Walk-in · No profile</Text>
+                                )}
+                            </View>
+
+                            {/* Status chip */}
+                            <View style={[rq.statusChip, { backgroundColor: cfg.bg }]}>
+                                <View style={[rq.statusDot, { backgroundColor: cfg.dot }]} />
+                                <Text style={[rq.statusText, { color: cfg.text }]}>{cfg.label}</Text>
+                            </View>
+
+                            {/* Chevron or spinner */}
+                            {isItemLoading ? (
+                                <ActivityIndicator size="small" color="#0D9488" />
+                            ) : !isWalkin ? (
+                                <ChevronRight size={15} color="#D1D5DB" />
+                            ) : null}
+                        </TouchableOpacity>
+                    )
+                })}
+            </View>
+
+            {/* Divider */}
+            <View style={rq.divider}>
+                <View style={rq.dividerLine} />
+                <Text style={rq.dividerLabel}>All Patients</Text>
+                <View style={rq.dividerLine} />
+            </View>
+        </View>
+    )
+}
+
+// ─── Patient Lookup ───────────────────────────────────────────────────────────
 
 export function PatientLookup({ onSelect }: PatientLookupProps) {
     const [searchQuery, setSearchQuery] = useState('')
@@ -171,7 +336,7 @@ export function PatientLookup({ onSelect }: PatientLookupProps) {
                 )}
             </View>
 
-            {/* Content */}
+            {/* Content — FlatList with ListHeaderComponent for queue section */}
             {isLoading ? (
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color="#0D9488" />
@@ -195,9 +360,17 @@ export function PatientLookup({ onSelect }: PatientLookupProps) {
                     renderItem={renderPatient}
                     contentContainerStyle={styles.listContent}
                     ListHeaderComponent={
-                        <Text style={styles.sectionLabel}>
-                            {searchQuery ? `${patients.length} result(s) for "${searchQuery}"` : 'All Patients'}
-                        </Text>
+                        <>
+                            {/* Recently Queued — only shown when no active search */}
+                            {!searchQuery && (
+                                <RecentQueueSection onSelect={onSelect} />
+                            )}
+                            <Text style={styles.sectionLabel}>
+                                {searchQuery
+                                    ? `${patients.length} result(s) for "${searchQuery}"`
+                                    : 'All Patients'}
+                            </Text>
+                        </>
                     }
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
@@ -217,6 +390,157 @@ export function PatientLookup({ onSelect }: PatientLookupProps) {
     )
 }
 
+// ─── Recently Queued Styles ───────────────────────────────────────────────────
+const rq = StyleSheet.create({
+    sectionWrapper: {
+        marginBottom: 8,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 10,
+    },
+    sectionHeaderLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    sectionTitle: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#0D9488',
+        letterSpacing: 0.3,
+    },
+    sectionSub: {
+        fontSize: 11,
+        color: '#9CA3AF',
+        fontWeight: '500',
+    },
+    countBadge: {
+        backgroundColor: '#CCFBF1',
+        borderRadius: 999,
+        paddingHorizontal: 7,
+        paddingVertical: 2,
+        borderWidth: 1,
+        borderColor: '#99F6E4',
+    },
+    countBadgeText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#0D9488',
+    },
+    loadingRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingVertical: 12,
+    },
+    loadingText: {
+        fontSize: 13,
+        color: '#9CA3AF',
+    },
+    itemList: {
+        backgroundColor: '#F8FFFE',
+        borderWidth: 1.5,
+        borderColor: '#CCFBF1',
+        borderRadius: 18,
+        overflow: 'hidden',
+        marginBottom: 16,
+    },
+    queueItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E6FDF9',
+    },
+    queueItemLast: {
+        borderBottomWidth: 0,
+    },
+    queueItemWalkin: {
+        opacity: 0.6,
+    },
+    queueBadge: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: '#0D9488',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    queueBadgeText: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: '#FFFFFF',
+    },
+    avatar: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: '#CCFBF1',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarText: {
+        fontSize: 11,
+        fontWeight: '800',
+        color: '#0D9488',
+    },
+    itemInfo: {
+        flex: 1,
+    },
+    itemName: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#111827',
+    },
+    walkinLabel: {
+        fontSize: 11,
+        color: '#9CA3AF',
+        marginTop: 1,
+    },
+    statusChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        borderRadius: 8,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    statusDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+    statusText: {
+        fontSize: 9,
+        fontWeight: '800',
+        letterSpacing: 0.5,
+    },
+    divider: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        marginBottom: 12,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#F3F4F6',
+    },
+    dividerLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#9CA3AF',
+        letterSpacing: 0.5,
+        textTransform: 'uppercase',
+    },
+})
+
+// ─── Patient Lookup Styles ────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container: {
         flex: 1,

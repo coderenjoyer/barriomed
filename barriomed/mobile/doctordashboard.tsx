@@ -50,7 +50,7 @@ function useCurrentServing() {
         try {
             const data = await queueService.getQueueList();
             const servingRow = data.find((r: any) => r.status === 'Serving');
-            const waiting    = data.filter((r: any) => r.status === 'Waiting');
+            const waiting    = data.filter((r: any) => r.status === 'Waiting' || r.status === 'Pending');
             setWaitingCount(waiting.length);
             if (servingRow) {
                 setServing({
@@ -634,12 +634,6 @@ function RecordEditor({
         <View>
             <View style={editor.fieldGroup}>
                 <Text style={editor.label}>Title</Text>
-                <View>
-                    <Text
-                        style={editor.input}
-                        onPress={() => {/* handled by TextInput below */ }}
-                    />
-                </View>
                 <RecordInput
                     value={record.title}
                     onChange={(v) => onChange({ ...record, title: v })}

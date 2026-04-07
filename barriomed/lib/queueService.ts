@@ -18,7 +18,18 @@ export interface QueueTicketData {
     patientName?: string;
 }
 
-const STORAGE_KEY = '@barriomed_queue_ticket';
+export interface RecentQueuedPatient {
+    ticketId: string;
+    queueNumber: number;
+    status: QueueStatus | string;
+    createdAt: string;
+    userId: string | null;
+    patientName: string;
+    patientFirstName: string;
+    patientLastName: string;
+}
+
+const getStorageKey = (userId: string) => `@barriomed_queue_ticket_${userId}`;
 
 // Statuses that mean the ticket is no longer active.
 // A cached ticket with any of these statuses must NOT be restored as an active queue.
@@ -132,7 +143,7 @@ export const queueService = {
         const existing = await this.getActiveQueue(userId);
         if (existing) {
             // Persist the existing ticket locally so the UI is consistent
-            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(existing));
+            await AsyncStorage.setItem(getStorageKey(userId), JSON.stringify(existing));
             return { ...existing, alreadyActive: true };
         }
         // ───────────────────────────────────────────────────────────────────────
@@ -149,7 +160,7 @@ export const queueService = {
         };
 
         try {
-            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(initialTicket));
+            await AsyncStorage.setItem(getStorageKey(userId), JSON.stringify(initialTicket));
 
             const dbServiceType = mapServiceTypeDb(serviceType);
             // NOTE: p_created_at is intentionally omitted so the RPC always uses
@@ -186,7 +197,7 @@ export const queueService = {
                     peopleAhead: peopleAhead,
                     estWaitTime: `${peopleAhead * 15} mins` // 15 mins avg wait time
                 };
-                await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(confirmedTicket));
+                await AsyncStorage.setItem(getStorageKey(userId), JSON.stringify(confirmedTicket));
                 return confirmedTicket;
             } else {
                 console.warn('RPC Error:', error?.message);
@@ -200,25 +211,7 @@ export const queueService = {
 
     // Silently sync pending ticket on connectivity restore (A-BL-02)
     async syncPendingTicket(userId: string): Promise<QueueTicketData | null> {
-<<<<<<< Updated upstream
-       const cached = await AsyncStorage.getItem(STORAGE_KEY);
-       if (!cached) return null;
-
-       const ticket: QueueTicketData = JSON.parse(cached);
-
-       // Skip terminal tickets — they have already been handled by the onStatusUpdate
-       // callback and should not be re-synced or displayed.
-       if (TERMINAL_STATUSES.includes(ticket.status as QueueStatus)) {
-           await AsyncStorage.removeItem(STORAGE_KEY);
-           return null;
-       }
-
-       if (ticket.status === 'Pending') {
-           return this.requestTicket(userId, ticket.serviceType);
-       }
-       return ticket;
-=======
-        const cached = await AsyncStorage.getItem(STORAGE_KEY);
+        const cached = await AsyncStorage.getItem(getStorageKey(userId));
         if (!cached) return null;
 
         const ticket: QueueTicketData = JSON.parse(cached);
@@ -226,11 +219,10 @@ export const queueService = {
             return this.requestTicket(userId, ticket.serviceType);
         }
         return ticket;
->>>>>>> Stashed changes
     },
 
-    async getLocalTicket(): Promise<QueueTicketData | null> {
-        const cached = await AsyncStorage.getItem(STORAGE_KEY);
+    async getLocalTicket(userId: string): Promise<QueueTicketData | null> {
+        const cached = await AsyncStorage.getItem(getStorageKey(userId));
         if (!cached) return null;
 
         const ticket: QueueTicketData = JSON.parse(cached);
@@ -238,55 +230,34 @@ export const queueService = {
         // Do NOT surface a completed/cancelled ticket as active.
         // This prevents a stale cache from re-displaying a finished queue on app relaunch.
         if (TERMINAL_STATUSES.includes(ticket.status as QueueStatus)) {
-            await AsyncStorage.removeItem(STORAGE_KEY);
+            await AsyncStorage.removeItem(getStorageKey(userId));
             return null;
         }
 
         return ticket;
     },
 
-    async updateLocalTicket(ticket: QueueTicketData) {
-        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(ticket));
+    async updateLocalTicket(userId: string, ticket: QueueTicketData) {
+        await AsyncStorage.setItem(getStorageKey(userId), JSON.stringify(ticket));
     },
 
-    async clearLocalTicket() {
-        await AsyncStorage.removeItem(STORAGE_KEY);
+    async clearLocalTicket(userId: string) {
+        await AsyncStorage.removeItem(getStorageKey(userId));
     },
 
-<<<<<<< Updated upstream
-    // Cancels the ticket in the DB (marks CANCELLED) then clears local storage.
-    // Previously only AsyncStorage was cleared, leaving ghost WAITING rows in Supabase
-    // that caused all subsequent users to get inflated queue numbers.
-    async cancelTicket(userId: string): Promise<boolean> {
-        const cached = await AsyncStorage.getItem(STORAGE_KEY);
-        if (!cached) return false;
-
-        const ticket: QueueTicketData = JSON.parse(cached);
-        if (!ticket.id) {
-            await AsyncStorage.removeItem(STORAGE_KEY);
-            return false;
+    async cancelTicket(userId: string, ticketId: string) {
+        const { error } = await supabase
+            .from('queue_transactions')
+            .update({ status: 'CANCELLED' })
+            .eq('ticket_id', ticketId)
+            .eq('user_id', userId);
+        
+        if (!error) {
+            await AsyncStorage.removeItem(getStorageKey(userId));
         }
-
-        try {
-            const { data, error } = await supabase.rpc('cancel_ticket', {
-                p_ticket_id: ticket.id,
-                p_user_id: userId
-            });
-
-            if (error) {
-                console.warn('cancel_ticket RPC error:', error.message);
-                // Still clear local storage even if DB call fails to avoid stuck state
-            }
-        } catch (e) {
-            console.warn('cancel_ticket network error:', e);
-        }
-
-        await AsyncStorage.removeItem(STORAGE_KEY);
-        return true;
+        return !error;
     },
-    
-=======
->>>>>>> Stashed changes
+
     // A-FR-02: Real-Time Queue Monitoring
     subscribeToQueue(
         serviceType: string,
@@ -327,7 +298,7 @@ export const queueService = {
         let query = supabase
             .from('queue_transactions')
             .select('*, users(first_name, last_name)')
-            .in('status', ['WAITING', 'SERVING', 'SKIPPED'])
+            .in('status', ['PENDING_SYNC', 'WAITING', 'SERVING', 'SKIPPED'])
             .order('queue_number', { ascending: true });
 
         // if serviceType is provided we might want to map it
@@ -433,6 +404,38 @@ export const queueService = {
         return () => {
             supabase.removeChannel(channel);
         };
+    },
+
+    /**
+     * Fetches the 5 most recently queued active patients (pending/in-progress).
+     * Used in the Doctor Dashboard Patient Lookup "Recently Queued" section.
+     * Statuses included: PENDING_SYNC, WAITING, SERVING
+     */
+    async getRecentQueuedPatients(): Promise<RecentQueuedPatient[]> {
+        const { data, error } = await supabase
+            .from('queue_transactions')
+            .select('ticket_id, queue_number, status, created_at, user_id, users(id, first_name, last_name)')
+            .in('status', ['PENDING_SYNC', 'WAITING', 'SERVING'])
+            .order('created_at', { ascending: false })
+            .limit(5);
+
+        if (error) {
+            console.error('[getRecentQueuedPatients] error:', error);
+            return [];
+        }
+
+        return (data || []).map((item: any) => ({
+            ticketId: item.ticket_id,
+            queueNumber: item.queue_number,
+            status: mapDbStatusToUi(item.status),
+            createdAt: item.created_at,
+            userId: item.user_id,
+            patientName: item.users
+                ? `${item.users.first_name ?? ''} ${item.users.last_name ?? ''}`.trim()
+                : 'Walk-in Patient',
+            patientFirstName: item.users?.first_name ?? '',
+            patientLastName: item.users?.last_name ?? '',
+        }));
     },
 
     subscribeToQueueHistory(onUpdate: () => void) {

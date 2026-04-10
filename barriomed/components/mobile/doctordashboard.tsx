@@ -8,6 +8,7 @@ import {
     ActivityIndicator,
     Alert,
     Platform,
+    LogBox,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { PatientLookup } from '../doctor/patientsearch';
@@ -34,12 +35,18 @@ import {
     type PrescriptionMedication,
 } from '../../backend/lib/medicalRecordsService';
 
+LogBox.ignoreLogs([
+  'setLayoutAnimationEnabledExperimental is currently a no-op',
+]);
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface ServingPatient {
     queueNumber: number;
     name: string;
     service: string;
 }
+
+
 
 // ─── Hook: live currently-served patient ─────────────────────────────────────
 function useCurrentServing() {

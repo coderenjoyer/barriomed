@@ -1,7 +1,7 @@
 //for code cleaning
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, LogBox } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { useAuth } from '../../backend/lib/AuthContext';
@@ -21,6 +21,11 @@ import { NotificationsPanel } from '../../components/patient/patient/Notificatio
 import { queueService, QueueTicketData } from '../../backend/lib/queueService';
 import { Alert } from 'react-native';
 import { NotificationType } from '../../backend/lib/notificationService';
+
+LogBox.ignoreLogs([
+  'setLayoutAnimationEnabledExperimental is currently a no-op',
+]);
+
 
 // Family members – empty until real data is bound
 const initialFamilyMembers: FamilyMember[] = [];

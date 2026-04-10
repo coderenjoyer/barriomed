@@ -17,10 +17,12 @@ function StaffHeader({
     title,
     subtitle,
     onLogout,
+    onBack,
 }: {
     title: string;
     subtitle?: string;
     onLogout: () => void;
+    onBack?: () => void;
 }) {
     const insets = useSafeAreaInsets();
 
@@ -36,16 +38,29 @@ function StaffHeader({
                 justifyContent: 'space-between',
             }}
         >
-            {/* Title block */}
-            <View style={{ flex: 1 }}>
-                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16, lineHeight: 20 }}>
-                    {title}
-                </Text>
-                {subtitle ? (
-                    <Text style={{ color: '#99F6E4', fontSize: 12, lineHeight: 16 }}>
-                        {subtitle}
-                    </Text>
+            {/* Back button (optional) + Title block */}
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {onBack ? (
+                    <TouchableOpacity
+                        onPress={onBack}
+                        style={{
+                            padding: 4,
+                            marginRight: 4,
+                        }}
+                    >
+                        <Feather name="chevron-left" size={24} color="white" />
+                    </TouchableOpacity>
                 ) : null}
+                <View>
+                    <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16, lineHeight: 20 }}>
+                        {title}
+                    </Text>
+                    {subtitle ? (
+                        <Text style={{ color: '#99F6E4', fontSize: 12, lineHeight: 16 }}>
+                            {subtitle}
+                        </Text>
+                    ) : null}
+                </View>
             </View>
 
             {/* Logout button */}
@@ -99,22 +114,22 @@ export function StaffNavigator({ onLogout }: { onLogout: () => void }) {
             <Stack.Screen
                 name="Inventory"
                 component={InventoryMaster}
-                options={{
+                options={({ navigation }) => ({
                     header: () => (
-                        <StaffHeader title="Medicine Stocks" onLogout={onLogout} />
+                        <StaffHeader title="Medicine Stocks" onLogout={onLogout} onBack={() => navigation.goBack()} />
                     ),
                     headerShown: true,
-                }}
+                })}
             />
             <Stack.Screen
                 name="QueueHistory"
                 component={QueueHistory}
-                options={{
+                options={({ navigation }) => ({
                     header: () => (
-                        <StaffHeader title="Queue History" onLogout={onLogout} />
+                        <StaffHeader title="Queue History" onLogout={onLogout} onBack={() => navigation.goBack()} />
                     ),
                     headerShown: true,
-                }}
+                })}
             />
         </Stack.Navigator>
     );

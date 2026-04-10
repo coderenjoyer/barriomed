@@ -1,6 +1,36 @@
 import { supabase } from './supabase';
+
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY ?? '';
+
+/**
+ * Fire-and-forget: invokes the twilio-queue-alert Edge Function so the next
+ * patient receives an SMS alert. Silently swallows errors so a Twilio failure
+ * never breaks the core queue flow.
+ *
+ * @param userId      The Supabase user_id of the patient being called (null for walk‑ins).
+ * @param queueNumber The queue number that was just promoted to SERVING.
+ */
+async function sendTwilioQueueAlert(userId: string | null, queueNumber: number): Promise<void> {
+    // Walk-in patients have no registered phone – skip silently.
+    if (!userId) return;
+
+    try {
+        const edgeUrl = `${SUPABASE_URL}/functions/v1/twilio-queue-alert`;
+        await fetch(edgeUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ user_id: userId, queue_number: queueNumber }),
+        });
+    } catch (err) {
+        console.warn('[queueService] Twilio alert failed (non‑critical):', err);
+    }
+}
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ServiceType } from '../components/patient/patient/selectservice';
+import { ServiceType } from '../../components/patient/patient/selectservice';
 
 export type QueueStatus = 'Pending' | 'Waiting' | 'Serving' | 'Completed' | 'No Show' | 'Cancelled';
 
@@ -264,7 +294,7 @@ export const queueService = {
             .update({ status: 'CANCELLED' })
             .eq('ticket_id', ticketId)
             .eq('user_id', userId);
-        
+
         if (!error) {
             await AsyncStorage.removeItem(getStorageKey(userId));
         }
@@ -365,6 +395,17 @@ export const queueService = {
         // DB RPC call_next handles finding the next ticket automatically. By passing dbServiceType, it filters to that specific service if needed.
         const { data, error } = await supabase.rpc('call_next', { p_service_type: dbServiceType });
         if (error) throw error;
+
+        // Fire-and-forget SMS alert to the patient being called.
+        // The RPC returns an array of promoted rows; we take the first one.
+        if (Array.isArray(data) && data.length > 0) {
+            const calledTicket = data[0];
+            sendTwilioQueueAlert(
+                calledTicket.user_id ?? null,
+                calledTicket.queue_number ?? 0
+            );
+        }
+
         return data;
     },
 

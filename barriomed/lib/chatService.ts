@@ -204,6 +204,11 @@ export const chatService = {
         doctorId: string,
         patientId: string,
     ): Promise<{ success: boolean; data?: Conversation; error?: string }> {
+        const { data: toggleData } = await supabase.from('feature_toggles').select('is_enabled').eq('feature', 'chat').maybeSingle();
+        if (toggleData && toggleData.is_enabled === false) {
+            return { success: false, error: 'Chat system is currently disabled for maintenance.' };
+        }
+
         // Try to find existing conversation
         const { data: existing } = await supabase
             .from('conversations')
@@ -320,6 +325,11 @@ export const chatService = {
         receiverId: string;
         content: string;
     }): Promise<{ success: boolean; data?: ChatMessage; error?: string }> {
+        const { data: toggleData } = await supabase.from('feature_toggles').select('is_enabled').eq('feature', 'chat').maybeSingle();
+        if (toggleData && toggleData.is_enabled === false) {
+            return { success: false, error: 'Chat system is currently disabled for maintenance.' };
+        }
+
         const { data, error } = await supabase
             .from('chat_messages')
             .insert({

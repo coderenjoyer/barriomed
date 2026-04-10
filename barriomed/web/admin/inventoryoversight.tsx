@@ -1,29 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Modal } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { adminService } from '../../lib/adminService'
+import { adminService, InventoryItem } from '../../lib/adminService'
 import { useAuth } from '../../lib/AuthContext'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 type StockStatus = 'AVAILABLE' | 'LOW' | 'OUT_OF_STOCK'
 type DisplayStatus = 'In Stock' | 'Low Stock' | 'Out of Stock'
-
-interface InventoryItem {
-    item_id: string
-    generic_name: string
-    brand_name?: string
-    category: string
-    quantity?: number
-    unit?: string
-    stock_status: StockStatus
-    last_updated?: string
-    updated_by?: string
-    batch_no?: string
-    expiry_date?: string
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
 
 const STATUS_DB_TO_DISPLAY: Record<StockStatus, DisplayStatus> = {
     'AVAILABLE':    'In Stock',
@@ -45,6 +29,30 @@ const STATUS_CONFIG: Record<DisplayStatus, { bg: string; text: string; dot: stri
 
 const STATUS_OPTIONS: DisplayStatus[] = ['In Stock', 'Low Stock', 'Out of Stock']
 
+// ─── Add Medicine Form State ──────────────────────────────────────────────────
+
+interface AddMedicineForm {
+    generic_name: string
+    brand_name: string
+    category: string
+    quantity: string
+    unit: string
+    stock_status: DisplayStatus
+    batch_no: string
+    expiry_date: string
+}
+
+const EMPTY_FORM: AddMedicineForm = {
+    generic_name: '',
+    brand_name: '',
+    category: '',
+    quantity: '',
+    unit: '',
+    stock_status: 'In Stock',
+    batch_no: '',
+    expiry_date: '',
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function InventoryOversight() {
@@ -61,10 +69,17 @@ export function InventoryOversight() {
     const [error, setError]               = useState<string | null>(null)
     const [feedback, setFeedback]         = useState<{ id: string; success: boolean; msg: string } | null>(null)
 
+    // Add Medicine modal
+    const [showAddModal, setShowAddModal] = useState(false)
+    const [addForm, setAddForm]           = useState<AddMedicineForm>(EMPTY_FORM)
+    const [addSaving, setAddSaving]       = useState(false)
+    const [addError, setAddError]         = useState<string | null>(null)
+
     const adminId   = userProfile?.id ?? ''
     const adminName = userProfile
         ? `${userProfile.first_name} ${userProfile.last_name}`
         : 'Admin'
+    const adminRole = (userProfile?.role as string) ?? 'system_admin'
 
     // ── Data Loading ─────────────────────────────────────────────────────────
 
@@ -87,11 +102,47 @@ export function InventoryOversight() {
         return unsub
     }, [loadInventory])
 
+    // ── Add Medicine ─────────────────────────────────────────────────────────
+
+    const handleAddMedicine = async () => {
+        if (!addForm.generic_name.trim() || !addForm.category.trim()) {
+            setAddError('Generic name and category are required.')
+            return
+        }
+        setAddSaving(true)
+        setAddError(null)
+
+        const result = await adminService.addInventoryItem({
+            item: {
+                generic_name: addForm.generic_name.trim(),
+                brand_name:   addForm.brand_name.trim() || null,
+                category:     addForm.category.trim(),
+                quantity:     addForm.quantity ? Number(addForm.quantity) : null,
+                unit:         addForm.unit.trim() || null,
+                stock_status: DISPLAY_TO_DB[addForm.stock_status],
+                batch_no:     addForm.batch_no.trim() || null,
+                expiry_date:  addForm.expiry_date.trim() || null,
+            },
+            adminId,
+            adminName,
+            adminRole,
+        })
+
+        if (result.success && result.item) {
+            setItems(prev => [result.item!, ...prev])
+            setShowAddModal(false)
+            setAddForm(EMPTY_FORM)
+        } else {
+            setAddError(result.error ?? 'Failed to add medicine.')
+        }
+        setAddSaving(false)
+    }
+
     // ── Override (status change) ──────────────────────────────────────────────
 
     const openOverride = (item: InventoryItem) => {
         setOverridingId(item.item_id)
-        setPendingStatus(STATUS_DB_TO_DISPLAY[item.stock_status])
+        setPendingStatus(STATUS_DB_TO_DISPLAY[item.stock_status as StockStatus])
     }
 
     const handleSaveOverride = async (item: InventoryItem) => {
@@ -100,11 +151,13 @@ export function InventoryOversight() {
 
         const newDbStatus = DISPLAY_TO_DB[pendingStatus]
         const result = await adminService.overrideInventoryQuantity({
-            itemId: item.item_id,
-            genericName: item.generic_name,
-            newStatus: newDbStatus,
+            itemId:       item.item_id,
+            genericName:  item.generic_name,
+            newStatus:    newDbStatus,
             adminId,
             adminName,
+            adminRole,
+            previousItem: item,          // ← captures old_value for audit
         })
 
         if (result.success) {
@@ -136,10 +189,12 @@ export function InventoryOversight() {
         setDeletingId(item.item_id)
         try {
             const result = await adminService.deleteInventoryItem({
-                itemId: item.item_id,
-                genericName: item.generic_name,
+                itemId:       item.item_id,
+                genericName:  item.generic_name,
                 adminId,
                 adminName,
+                adminRole,
+                itemSnapshot: item,      // ← captures old_value for audit
             })
 
             if (result.success) {
@@ -157,7 +212,7 @@ export function InventoryOversight() {
     // ── Derived state ─────────────────────────────────────────────────────────
 
     const getDisplayStatus = (item: InventoryItem): DisplayStatus =>
-        STATUS_DB_TO_DISPLAY[item.stock_status] ?? 'Out of Stock'
+        STATUS_DB_TO_DISPLAY[item.stock_status as StockStatus] ?? 'Out of Stock'
 
     const filtered = items.filter(i => {
         const matchSearch =
@@ -195,9 +250,18 @@ export function InventoryOversight() {
                     <Text className="text-2xl font-bold text-gray-900">Inventory Oversight</Text>
                     <Text className="text-gray-500 mt-1">Monitor stock levels and apply administrative overrides</Text>
                 </View>
-                <TouchableOpacity onPress={loadInventory} className="p-2 rounded-lg bg-gray-50 border border-gray-200">
-                    <Feather name="refresh-cw" size={16} color="#6B7280" />
-                </TouchableOpacity>
+                <View className="flex-row gap-2">
+                    <TouchableOpacity
+                        onPress={() => { setAddForm(EMPTY_FORM); setAddError(null); setShowAddModal(true) }}
+                        className="flex-row items-center gap-2 px-3 py-2 rounded-lg bg-teal-600 border border-teal-600"
+                    >
+                        <Feather name="plus" size={15} color="white" />
+                        <Text className="text-white font-semibold text-sm">Add Medicine</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={loadInventory} className="p-2 rounded-lg bg-gray-50 border border-gray-200">
+                        <Feather name="refresh-cw" size={16} color="#6B7280" />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* Error Banner */}
@@ -400,6 +464,188 @@ export function InventoryOversight() {
                     )}
                 </View>
             </View>
+
+            {/* ── Add Medicine Modal ── */}
+            <Modal
+                visible={showAddModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowAddModal(false)}
+            >
+                <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+                    <View style={{ width: '100%', maxWidth: 520, backgroundColor: 'white', borderRadius: 24, padding: 28 }}>
+
+                        {/* Modal Header */}
+                        <View className="flex-row items-center justify-between mb-6">
+                            <View className="flex-row items-center gap-3">
+                                <View className="w-9 h-9 rounded-xl bg-teal-100 items-center justify-center">
+                                    <Feather name="plus-circle" size={18} color="#0D9488" />
+                                </View>
+                                <View>
+                                    <Text className="text-lg font-bold text-gray-900">Add Medicine</Text>
+                                    <Text className="text-xs text-gray-400">New inventory item · audit log will be created</Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity onPress={() => setShowAddModal(false)} className="p-1.5 rounded-lg bg-gray-100">
+                                <Feather name="x" size={16} color="#6B7280" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Form Fields */}
+                        <View className="flex-col gap-4">
+
+                            {/* Generic Name */}
+                            <View>
+                                <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                    Generic Name <Text className="text-rose-500">*</Text>
+                                </Text>
+                                <TextInput
+                                    value={addForm.generic_name}
+                                    onChangeText={v => setAddForm(f => ({ ...f, generic_name: v }))}
+                                    placeholder="e.g. Paracetamol"
+                                    placeholderTextColor="#9CA3AF"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 h-11"
+                                />
+                            </View>
+
+                            {/* Brand Name */}
+                            <View>
+                                <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Brand Name</Text>
+                                <TextInput
+                                    value={addForm.brand_name}
+                                    onChangeText={v => setAddForm(f => ({ ...f, brand_name: v }))}
+                                    placeholder="e.g. Biogesic (optional)"
+                                    placeholderTextColor="#9CA3AF"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 h-11"
+                                />
+                            </View>
+
+                            {/* Category */}
+                            <View>
+                                <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">
+                                    Category <Text className="text-rose-500">*</Text>
+                                </Text>
+                                <TextInput
+                                    value={addForm.category}
+                                    onChangeText={v => setAddForm(f => ({ ...f, category: v }))}
+                                    placeholder="e.g. Analgesic"
+                                    placeholderTextColor="#9CA3AF"
+                                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 h-11"
+                                />
+                            </View>
+
+                            {/* Quantity + Unit */}
+                            <View className="flex-row gap-3">
+                                <View className="flex-1">
+                                    <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Quantity</Text>
+                                    <TextInput
+                                        value={addForm.quantity}
+                                        onChangeText={v => setAddForm(f => ({ ...f, quantity: v.replace(/[^0-9]/g, '') }))}
+                                        placeholder="0"
+                                        placeholderTextColor="#9CA3AF"
+                                        keyboardType="numeric"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 h-11"
+                                    />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Unit</Text>
+                                    <TextInput
+                                        value={addForm.unit}
+                                        onChangeText={v => setAddForm(f => ({ ...f, unit: v }))}
+                                        placeholder="e.g. tablets"
+                                        placeholderTextColor="#9CA3AF"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 h-11"
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Stock Status */}
+                            <View>
+                                <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Initial Stock Status</Text>
+                                <View className="flex-row gap-2">
+                                    {STATUS_OPTIONS.map(s => {
+                                        const cfg = STATUS_CONFIG[s]
+                                        const isSelected = addForm.stock_status === s
+                                        return (
+                                            <TouchableOpacity
+                                                key={s}
+                                                onPress={() => setAddForm(f => ({ ...f, stock_status: s }))}
+                                                className={`flex-1 py-2.5 rounded-xl border items-center ${isSelected ? `${cfg.bg} ${cfg.border}` : 'bg-gray-50 border-gray-200'}`}
+                                            >
+                                                <Text className={`text-xs font-bold ${isSelected ? cfg.text : 'text-gray-500'}`}>{s}</Text>
+                                            </TouchableOpacity>
+                                        )
+                                    })}
+                                </View>
+                            </View>
+
+                            {/* Batch No + Expiry */}
+                            <View className="flex-row gap-3">
+                                <View className="flex-1">
+                                    <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Batch No.</Text>
+                                    <TextInput
+                                        value={addForm.batch_no}
+                                        onChangeText={v => setAddForm(f => ({ ...f, batch_no: v }))}
+                                        placeholder="e.g. BN-2025-01"
+                                        placeholderTextColor="#9CA3AF"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 h-11"
+                                    />
+                                </View>
+                                <View className="flex-1">
+                                    <Text className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Expiry Date</Text>
+                                    <TextInput
+                                        value={addForm.expiry_date}
+                                        onChangeText={v => setAddForm(f => ({ ...f, expiry_date: v }))}
+                                        placeholder="YYYY-MM-DD"
+                                        placeholderTextColor="#9CA3AF"
+                                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 h-11"
+                                    />
+                                </View>
+                            </View>
+
+                            {/* Error */}
+                            {addError && (
+                                <View className="flex-row items-center gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200">
+                                    <Feather name="alert-circle" size={13} color="#E11D48" />
+                                    <Text className="text-rose-700 text-sm font-medium">{addError}</Text>
+                                </View>
+                            )}
+
+                            {/* Audit note */}
+                            <View className="flex-row items-center gap-2 p-3 rounded-xl bg-teal-50 border border-teal-100">
+                                <Feather name="shield" size={12} color="#0D9488" />
+                                <Text className="text-teal-700 text-xs flex-1">
+                                    An audit log entry will be created automatically (action: CREATE, performed by: {adminName}).
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Actions */}
+                        <View className="flex-row gap-3 mt-6">
+                            <TouchableOpacity
+                                onPress={() => setShowAddModal(false)}
+                                className="flex-1 py-3 rounded-xl bg-gray-100 border border-gray-200 items-center"
+                            >
+                                <Text className="text-sm font-semibold text-gray-600">Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={handleAddMedicine}
+                                disabled={addSaving}
+                                className={`flex-1 py-3 rounded-xl items-center flex-row justify-center gap-2 ${addSaving ? 'bg-teal-600 opacity-60' : 'bg-teal-600'}`}
+                            >
+                                {addSaving
+                                    ? <ActivityIndicator size="small" color="white" />
+                                    : <Feather name="plus" size={15} color="white" />
+                                }
+                                <Text className="text-white font-semibold text-sm">
+                                    {addSaving ? 'Adding…' : 'Add Medicine'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
         </ScrollView>
     )
 }

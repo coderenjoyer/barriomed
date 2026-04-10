@@ -20,10 +20,10 @@ interface QueueEntry {
 }
 
 const STATUS_CONFIG: Record<string, { bg: string; text: string; dot: string; border: string }> = {
-    'Waiting':     { bg: 'bg-blue-50',    text: 'text-blue-700',    dot: 'bg-blue-400',    border: 'border-blue-200'    },
-    'In Progress': { bg: 'bg-teal-50',    text: 'text-teal-700',    dot: 'bg-teal-500',    border: 'border-teal-200'    },
-    'Completed':   { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', border: 'border-emerald-200' },
-    'Skipped':     { bg: 'bg-gray-100',   text: 'text-gray-500',    dot: 'bg-gray-400',    border: 'border-gray-200'    },
+    'Waiting': { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-400', border: 'border-blue-200' },
+    'In Progress': { bg: 'bg-teal-50', text: 'text-teal-700', dot: 'bg-teal-500', border: 'border-teal-200' },
+    'Completed': { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', border: 'border-emerald-200' },
+    'Skipped': { bg: 'bg-gray-100', text: 'text-gray-500', dot: 'bg-gray-400', border: 'border-gray-200' },
 }
 
 export function QueueOversight() {
@@ -78,7 +78,7 @@ export function QueueOversight() {
         setOverriding(null)
     }
 
-    const waitingCount  = activeQueue.filter(e => e.status === 'Waiting').length
+    const waitingCount = activeQueue.filter(e => e.status === 'Waiting').length
     const inProgressCount = activeQueue.filter(e => e.status === 'In Progress').length
     const completedCount = historyQueue.length
     const skippedCount = activeQueue.filter(e => e.status === 'Skipped').length
@@ -121,10 +121,10 @@ export function QueueOversight() {
             {/* Summary Cards */}
             <View className="flex-row gap-4 mb-6 flex-wrap">
                 {[
-                    { label: 'Currently Waiting', value: waitingCount,    color: 'bg-blue-50 border-blue-100',     text: 'text-blue-700',    icon: 'clock' as const },
-                    { label: 'In Progress',        value: inProgressCount, color: 'bg-teal-50 border-teal-100',     text: 'text-teal-700',    icon: 'activity' as const },
-                    { label: 'Served Today',       value: completedCount,  color: 'bg-emerald-50 border-emerald-100',text: 'text-emerald-700', icon: 'check-circle' as const },
-                    { label: 'Skipped',            value: skippedCount,    color: 'bg-gray-100 border-gray-200',    text: 'text-gray-600',    icon: 'skip-forward' as const },
+                    { label: 'Currently Waiting', value: waitingCount, color: 'bg-blue-50 border-blue-100', text: 'text-blue-700', icon: 'clock' as const },
+                    { label: 'In Progress', value: inProgressCount, color: 'bg-teal-50 border-teal-100', text: 'text-teal-700', icon: 'activity' as const },
+                    { label: 'Served', value: completedCount, color: 'bg-emerald-50 border-emerald-100', text: 'text-emerald-700', icon: 'check-circle' as const },
+                    { label: 'Skipped', value: skippedCount, color: 'bg-gray-100 border-gray-200', text: 'text-gray-600', icon: 'skip-forward' as const },
                 ].map(card => (
                     <View key={card.label} className={`flex-1 min-w-[140px] rounded-2xl p-4 border ${card.color} flex-row items-center gap-3`}>
                         <Feather name={card.icon} size={20} />

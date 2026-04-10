@@ -70,7 +70,7 @@ export function UserManagement() {
         setLoadingId(user.id)
         setActionFeedback(null)
 
-        const newActive = !(user as any).is_active
+        const newActive = !user.is_active
         const result = await adminService.setUserActiveStatus({
             userId: user.id,
             active: newActive,
@@ -79,7 +79,7 @@ export function UserManagement() {
 
         if (result.success) {
             setUsers(prev => prev.map(u =>
-                u.id === user.id ? { ...u, is_active: newActive } as any : u
+                u.id === user.id ? { ...u, is_active: newActive } : u
             ))
             setActionFeedback({ id: user.id, type: 'success', msg: newActive ? 'Reactivated' : 'Deactivated' })
         } else {
@@ -237,7 +237,7 @@ export function UserManagement() {
                 <ScrollView className="flex-1">
                     <View className="flex-col">
                         {filteredUsers.map((user, index) => {
-                            const isActive = (user as any).is_active !== false
+                            const isActive = user.is_active !== false
                             const feedback = actionFeedback?.id === user.id ? actionFeedback : null
                             return (
                                 <View

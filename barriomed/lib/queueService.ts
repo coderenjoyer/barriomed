@@ -91,6 +91,16 @@ const mapDbServiceType = (dbType: string): ServiceType => {
 export const queueService = {
 
     /**
+     * Helper to verify if the queue system is enabled. Throws if disabled.
+     */
+    async ensureQueueEnabled() {
+        const { data } = await supabase.from('feature_toggles').select('is_enabled').eq('feature', 'queue').maybeSingle();
+        if (data && data.is_enabled === false) {
+            throw new Error('Queue system is currently offline for maintenance.');
+        }
+    },
+
+    /**
      * Checks Supabase for an existing active queue entry for this user.
      * "Active" means WAITING, SERVING, or PENDING_SYNC.
      * Returns the hydrated QueueTicketData if one exists, or null.
@@ -139,6 +149,8 @@ export const queueService = {
     // A-FR-01: Get Ticket (Optimistic offline & online sync)
     // Guard: if the user already has an active queue, return it instead of creating a new one.
     async requestTicket(userId: string, serviceType: ServiceType): Promise<QueueTicketData & { alreadyActive?: boolean }> {
+        await this.ensureQueueEnabled();
+
         // ── Active-queue guard (server-side check) ──────────────────────────────
         const existing = await this.getActiveQueue(userId);
         if (existing) {
@@ -246,6 +258,7 @@ export const queueService = {
     },
 
     async cancelTicket(userId: string, ticketId: string) {
+        await this.ensureQueueEnabled();
         const { error } = await supabase
             .from('queue_transactions')
             .update({ status: 'CANCELLED' })
@@ -347,6 +360,7 @@ export const queueService = {
     },
 
     async callNext(serviceType: ServiceType) {
+        await this.ensureQueueEnabled();
         const dbServiceType = mapServiceTypeDb(serviceType);
         // DB RPC call_next handles finding the next ticket automatically. By passing dbServiceType, it filters to that specific service if needed.
         const { data, error } = await supabase.rpc('call_next', { p_service_type: dbServiceType });
@@ -355,6 +369,7 @@ export const queueService = {
     },
 
     async completePatient(transactionId: string) {
+        await this.ensureQueueEnabled();
         const { error } = await supabase
             .from('queue_transactions')
             .update({ status: 'COMPLETED', completed_at: new Date().toISOString() })
@@ -363,6 +378,7 @@ export const queueService = {
     },
 
     async markNoShow(transactionId: string) {
+        await this.ensureQueueEnabled();
         const { error } = await supabase
             .from('queue_transactions')
             .update({ status: 'SKIPPED' })
@@ -371,6 +387,7 @@ export const queueService = {
     },
 
     async reinsertPatient(transactionId: string) {
+        await this.ensureQueueEnabled();
         const { error } = await supabase
             .from('queue_transactions')
             .update({ status: 'WAITING' })
@@ -379,6 +396,7 @@ export const queueService = {
     },
 
     async registerWalkIn(patientName: string, serviceType: ServiceType) {
+        await this.ensureQueueEnabled();
         const dbServiceType = mapServiceTypeDb(serviceType);
         // We will assume "Walk-ins" might need a dummy user_id in the strict schema, 
         // but if schema allows NULL or we just create a temp UUID for them since it's just a generated ticket.

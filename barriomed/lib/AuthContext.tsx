@@ -158,6 +158,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             return { success: false, error: 'Registration is disabled for System Administrator accounts. Please contact support.' };
         }
 
+        // Check feature toggles for login
+        const { data: featureData } = await supabase
+            .from('feature_toggles')
+            .select('is_enabled')
+            .eq('feature', 'login')
+            .maybeSingle();
+
+        if (featureData && featureData.is_enabled === false) {
+            return { success: false, error: 'System login/registration is currently disabled for maintenance. Please try again later.' };
+        }
+
         const dbRole = UI_ROLE_TO_DB[role];
 
         // 1. Create the auth user via Supabase Auth (email + PIN-as-password)
@@ -246,6 +257,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         let resolvedUiRole: UiRole | null = null;
         if (data.session?.user) {
             const profile = await fetchUserProfile(data.session.user.id);
+
+            // Block login if the account has been deactivated by an admin
+            if (profile && (profile as any).is_active === false) {
+                await supabase.auth.signOut({ scope: 'local' });
+                return {
+                    success: false,
+                    error: 'This account has been deactivated. Please contact an administrator.',
+                };
+            }
+
+            // Check feature toggles for login
+            const { data: featureData } = await supabase
+                .from('feature_toggles')
+                .select('is_enabled')
+                .eq('feature', 'login')
+                .maybeSingle();
+            
+            if (featureData && featureData.is_enabled === false) {
+                if (profile?.role !== 'system_admin') {
+                    await supabase.auth.signOut({ scope: 'local' });
+                    return {
+                        success: false,
+                        error: 'System login is currently disabled for maintenance. Please try again later.',
+                    };
+                }
+            }
+
             setUserProfile(profile);
             if (profile?.role) {
                 resolvedUiRole = DB_ROLE_TO_UI[profile.role] ?? null;

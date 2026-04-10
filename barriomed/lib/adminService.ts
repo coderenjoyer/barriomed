@@ -11,6 +11,7 @@ export interface AdminUser {
     email: string;
     role: AdminRole;
     created_at: string;
+    is_active: boolean;
     // Derived on the client
     initials: string;
     displayName: string;
@@ -23,9 +24,41 @@ export interface AdminLog {
     resource_type: string;
     resource_id: string | null;
     metadata: Record<string, any> | null;
+    old_value: Record<string, any> | null;
+    new_value: Record<string, any> | null;
+    performed_by_role: string | null;
     created_at: string;
     // Joined
     admin_name?: string;
+}
+
+/** Matches the shape returned by fetchInventory() */
+export interface InventoryItem {
+    item_id: string;
+    generic_name: string;
+    brand_name?: string | null;
+    category: string;
+    quantity?: number | null;
+    unit?: string | null;
+    stock_status: string;
+    last_updated?: string | null;
+    updated_by?: string | null;
+    batch_no?: string | null;
+    expiry_date?: string | null;
+    created_by?: string | null;
+    created_at?: string | null;
+}
+
+export type InventoryAuditAction = 'CREATE' | 'UPDATE' | 'DELETE';
+
+export interface InventoryAuditFilters {
+    action?: string;
+    /** ISO date string – only return logs on or after this date */
+    fromDate?: string;
+    /** ISO date string – only return logs on or before this date */
+    toDate?: string;
+    /** Filter by admin_id */
+    userId?: string;
 }
 
 export interface AdminNotification {
@@ -37,6 +70,15 @@ export interface AdminNotification {
     is_read: boolean;
     related_id: string | null;
     created_at: string;
+}
+
+export type FeatureName = 'login' | 'chat' | 'queue';
+
+export interface FeatureToggle {
+    feature: FeatureName;
+    is_enabled: boolean;
+    updated_by: string | null;
+    updated_at: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -53,6 +95,7 @@ function mapUser(row: any): AdminUser {
         email: row.email ?? '',
         role: row.role as AdminRole,
         created_at: row.created_at,
+        is_active: row.is_active !== false, // default to true if column is null
         initials: makeInitials(row.first_name, row.last_name),
         displayName: `${row.first_name ?? ''} ${row.last_name ?? ''}`.trim(),
     };
@@ -62,6 +105,7 @@ function mapUser(row: any): AdminUser {
 
 /**
  * Writes an admin action to the admin_logs table (fail-safe: never throws).
+ * Supports structured old_value / new_value / performed_by_role for inventory audit.
  */
 export async function logAdminAction(params: {
     adminId: string;
@@ -69,6 +113,9 @@ export async function logAdminAction(params: {
     resourceType: string;
     resourceId?: string | null;
     metadata?: Record<string, any>;
+    oldValue?: Record<string, any> | null;
+    newValue?: Record<string, any> | null;
+    performedByRole?: string | null;
 }): Promise<void> {
     try {
         await supabase.from('admin_logs').insert({
@@ -77,6 +124,9 @@ export async function logAdminAction(params: {
             resource_type: params.resourceType,
             resource_id: params.resourceId ?? null,
             metadata: params.metadata ?? null,
+            old_value: params.oldValue ?? null,
+            new_value: params.newValue ?? null,
+            performed_by_role: params.performedByRole ?? null,
             created_at: new Date().toISOString(),
         });
     } catch (err) {
@@ -249,7 +299,7 @@ export const adminService = {
 
     // ── Inventory ─────────────────────────────────────────────────────────────
 
-    async fetchInventory() {
+    async fetchInventory(): Promise<InventoryItem[]> {
         const { data, error } = await supabase
             .from('inventory')
             .select('*')
@@ -260,7 +310,42 @@ export const adminService = {
             console.error('[adminService] fetchInventory error:', error);
             return [];
         }
-        return data ?? [];
+        return (data ?? []) as InventoryItem[];
+    },
+
+    /**
+     * Adds a new inventory item and writes a CREATE audit log.
+     */
+    async addInventoryItem(params: {
+        item: Omit<InventoryItem, 'item_id' | 'last_updated' | 'updated_by' | 'created_at'>;
+        adminId: string;
+        adminName: string;
+        adminRole: string;
+    }): Promise<{ success: boolean; item?: InventoryItem; error?: string }> {
+        const now = new Date().toISOString();
+        const row = {
+            ...params.item,
+            created_by: params.adminName,
+            created_at: now,
+            last_updated: now,
+            updated_by: params.adminName,
+            stock_status: params.item.stock_status ?? 'AVAILABLE',
+        };
+
+        const { data, error } = await supabase
+            .from('inventory')
+            .insert(row)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('[adminService] addInventoryItem error:', error);
+            return { success: false, error: error.message };
+        }
+
+        const created = data as InventoryItem;
+
+        return { success: true, item: created };
     },
 
     async overrideInventoryQuantity(params: {
@@ -269,28 +354,28 @@ export const adminService = {
         newStatus: string;
         adminId: string;
         adminName: string;
+        adminRole?: string;
+        /** Previous item snapshot (for audit old_value) */
+        previousItem?: InventoryItem | null;
     }): Promise<{ success: boolean; error?: string }> {
-        const { error } = await supabase
+        const now = new Date().toISOString();
+
+        const { data: updatedRows, error } = await supabase
             .from('inventory')
             .update({
                 stock_status: params.newStatus,
-                last_updated: new Date().toISOString(),
+                last_updated: now,
                 updated_by: params.adminName,
             })
-            .eq('item_id', params.itemId);
+            .eq('item_id', params.itemId)
+            .select()
 
         if (error) {
             console.error('[adminService] overrideInventoryQuantity error:', error);
             return { success: false, error: error.message };
         }
 
-        await logAdminAction({
-            adminId: params.adminId,
-            action: `Override stock status for "${params.genericName}" → ${params.newStatus}`,
-            resourceType: 'inventory',
-            resourceId: params.itemId,
-            metadata: { new_status: params.newStatus },
-        });
+        const updatedItem = (updatedRows?.[0] ?? null) as InventoryItem | null;
 
         return { success: true };
     },
@@ -308,14 +393,17 @@ export const adminService = {
         genericName: string;
         adminId: string;
         adminName: string;
+        adminRole?: string;
+        /** Full item snapshot captured before deletion for audit old_value */
+        itemSnapshot?: InventoryItem | null;
     }): Promise<{ success: boolean; error?: string }> {
-        // .select('item_id') is required — without it, a RLS-blocked DELETE
+        // .select('*') is required — without it, a RLS-blocked DELETE
         // returns { data: null, error: null } which is indistinguishable from success.
         const { data, error } = await supabase
             .from('inventory')
             .delete()
             .eq('item_id', params.itemId)
-            .select('item_id');
+            .select('*');
 
         if (error) {
             console.error('[adminService] deleteInventoryItem error:', error);
@@ -330,13 +418,8 @@ export const adminService = {
             };
         }
 
-        await logAdminAction({
-            adminId: params.adminId,
-            action: `Deleted inventory item: "${params.genericName}"`,
-            resourceType: 'inventory',
-            resourceId: params.itemId,
-            metadata: { deleted_by: params.adminName },
-        });
+        // Use the returned row as the definitive old_value (or fall back to snapshot)
+        const deletedRow = (data[0] ?? params.itemSnapshot ?? null) as InventoryItem | null;
 
         return { success: true };
     },
@@ -591,24 +674,177 @@ export const adminService = {
             return [];
         }
 
-        return (data ?? []).map((log: any) => ({
-            id: log.id,
-            admin_id: log.admin_id,
-            action: log.action,
-            resource_type: log.resource_type,
-            resource_id: log.resource_id,
-            metadata: log.metadata,
-            created_at: log.created_at,
-            admin_name: log.admin
-                ? `${log.admin.first_name} ${log.admin.last_name}`
-                : 'Admin',
-        }));
+        return (data ?? []).map(mapAdminLog);
+    },
+
+    /**
+     * Fetches audit logs scoped to the inventory resource, with optional filters.
+     * Supports filtering by action type (CREATE/UPDATE/DELETE), date range, and user.
+     */
+    async fetchInventoryAuditLogs(filters?: InventoryAuditFilters): Promise<AdminLog[]> {
+        let query = supabase
+            .from('admin_logs')
+            .select(`
+                *,
+                admin:users!admin_logs_admin_id_fkey(first_name, last_name)
+            `)
+            .eq('resource_type', 'inventory')
+            .order('created_at', { ascending: false })
+            .limit(500);
+
+        if (filters?.action) {
+            // action column starts with CREATE / UPDATE / DELETE
+            query = query.ilike('action', `${filters.action}%`);
+        }
+        if (filters?.fromDate) {
+            query = query.gte('created_at', filters.fromDate);
+        }
+        if (filters?.toDate) {
+            query = query.lte('created_at', filters.toDate);
+        }
+        if (filters?.userId) {
+            query = query.eq('admin_id', filters.userId);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('[adminService] fetchInventoryAuditLogs error:', error);
+            return [];
+        }
+
+        return (data ?? []).map(mapAdminLog);
+    },
+
+    /**
+     * Fetches audit logs scoped to the queue_transactions resource, with optional filters.
+     * Supports filtering by action type, date range, and user.
+     */
+    async fetchQueueAuditLogs(filters?: InventoryAuditFilters): Promise<AdminLog[]> {
+        let query = supabase
+            .from('admin_logs')
+            .select(`
+                *,
+                admin:users!admin_logs_admin_id_fkey(first_name, last_name)
+            `)
+            .eq('resource_type', 'queue_transactions')
+            .order('created_at', { ascending: false })
+            .limit(500);
+
+        if (filters?.action) {
+            query = query.ilike('action', `${filters.action}%`);
+        }
+        if (filters?.fromDate) {
+            query = query.gte('created_at', filters.fromDate);
+        }
+        if (filters?.toDate) {
+            query = query.lte('created_at', filters.toDate);
+        }
+        if (filters?.userId) {
+            query = query.eq('admin_id', filters.userId);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+            console.error('[adminService] fetchQueueAuditLogs error:', error);
+            return [];
+        }
+
+        return (data ?? []).map(mapAdminLog);
     },
 
     subscribeToAdminLogs(onUpdate: () => void): () => void {
         const channel = supabase
             .channel('admin_logs_watch')
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'admin_logs' }, onUpdate)
+            .subscribe();
+        return () => { supabase.removeChannel(channel); };
+    },
+
+    // ── Feature Toggles ───────────────────────────────────────────────────────
+
+    /**
+     * Fetches the current enabled/disabled state for all system features.
+     * Returns a map keyed by feature name for easy lookup.
+     */
+    async fetchFeatureToggles(): Promise<Record<FeatureName, FeatureToggle>> {
+        const { data, error } = await supabase
+            .from('feature_toggles')
+            .select('*');
+
+        if (error) {
+            console.error('[adminService] fetchFeatureToggles error:', error);
+            // Return safe defaults (all enabled) on error
+            return {
+                login: { feature: 'login', is_enabled: true, updated_by: null, updated_at: new Date().toISOString() },
+                chat: { feature: 'chat', is_enabled: true, updated_by: null, updated_at: new Date().toISOString() },
+                queue: { feature: 'queue', is_enabled: true, updated_by: null, updated_at: new Date().toISOString() },
+            };
+        }
+
+        const map = {} as Record<FeatureName, FeatureToggle>;
+        for (const row of (data ?? [])) {
+            map[row.feature as FeatureName] = row as FeatureToggle;
+        }
+        return map;
+    },
+
+    /**
+     * Enables or disables a single system feature atomically.
+     * Writes an audit log entry on every change.
+     *
+     * @param feature   - The feature to toggle ('login' | 'chat' | 'queue')
+     * @param enabled   - The desired new state
+     * @param adminId   - The system_admin performing the action
+     */
+    async setFeatureToggle(params: {
+        feature: FeatureName;
+        enabled: boolean;
+        adminId: string;
+    }): Promise<{ success: boolean; error?: string }> {
+        const now = new Date().toISOString();
+
+        const { error } = await supabase
+            .from('feature_toggles')
+            .update({
+                is_enabled: params.enabled,
+                updated_by: params.adminId,
+                updated_at: now,
+            })
+            .eq('feature', params.feature);
+
+        if (error) {
+            console.error('[adminService] setFeatureToggle error:', error);
+            return { success: false, error: error.message };
+        }
+
+        const action = params.enabled ? 'enable' : 'disable';
+
+        await logAdminAction({
+            adminId: params.adminId,
+            action: `FEATURE_TOGGLE: ${action} feature=${params.feature}`,
+            resourceType: 'feature_toggles',
+            resourceId: params.feature,
+            metadata: {
+                feature: params.feature,
+                action,
+                timestamp: now,
+            },
+            newValue: { feature: params.feature, is_enabled: params.enabled },
+        });
+
+        return { success: true };
+    },
+
+    /**
+     * Subscribes to real-time changes on the feature_toggles table.
+     * Triggers the callback immediately whenever any toggle is updated.
+     */
+    subscribeToFeatureToggles(onUpdate: () => void): () => void {
+        const channel = supabase
+            .channel('feature_toggles_watch')
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'feature_toggles' }, onUpdate)
             .subscribe();
         return () => { supabase.removeChannel(channel); };
     },
@@ -624,4 +860,22 @@ function mapQueueStatus(dbStatus: string): string {
         case 'SKIPPED': return 'Skipped';
         default: return 'Waiting';
     }
+}
+
+function mapAdminLog(log: any): AdminLog {
+    return {
+        id: log.id,
+        admin_id: log.admin_id,
+        action: log.action,
+        resource_type: log.resource_type,
+        resource_id: log.resource_id,
+        metadata: log.metadata,
+        old_value: log.old_value ?? null,
+        new_value: log.new_value ?? null,
+        performed_by_role: log.performed_by_role ?? null,
+        created_at: log.created_at,
+        admin_name: log.admin
+            ? `${log.admin.first_name} ${log.admin.last_name}`
+            : 'Admin',
+    };
 }

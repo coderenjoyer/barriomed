@@ -9,6 +9,7 @@ import {
     Platform,
     ActivityIndicator,
     KeyboardAvoidingView,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -509,9 +510,11 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
             >
                 {/* Logo / Brand */}
                 <View style={styles.brand}>
-                    <View style={styles.brandIcon}>
-                        <FontAwesome5 name="heartbeat" size={28} color="#0D9488" />
-                    </View>
+                    <Image
+                        source={require('../../assets/widbf_barriomed.ico')}
+                        style={styles.brandIcon}
+                        resizeMode="contain"
+                    />
                     <Text style={styles.brandName}>BarrioMed</Text>
                 </View>
 
@@ -547,7 +550,7 @@ const styles = StyleSheet.create({
     scroll: { padding: 20, paddingBottom: 48, justifyContent: 'center', flexGrow: 1 },
 
     brand: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 28 },
-    brandIcon: { width: 52, height: 52, backgroundColor: '#CCFBF1', borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+    brandIcon: { width: 52, height: 52 },
     brandName: { fontSize: 26, fontWeight: '800', color: '#0D9488', letterSpacing: -0.5 },
 
     stepRow: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 20 },

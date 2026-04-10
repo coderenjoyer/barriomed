@@ -489,7 +489,7 @@ export function QueueCommander() {
                                 onPress={handleCompleteAndCallNext}
                                 disabled={isActionLoading || !isController}
                                 className={`w-full py-4 rounded-2xl flex-row items-center justify-center gap-2 border-2 ${!isController ? 'border-gray-200 bg-gray-50 opacity-60' :
-                                        (isActionLoading ? 'border-emerald-200 bg-emerald-50' : 'border-emerald-300 bg-emerald-50')
+                                    (isActionLoading ? 'border-emerald-200 bg-emerald-50' : 'border-emerald-300 bg-emerald-50')
                                     }`}
                             >
                                 {isActionLoading ? (

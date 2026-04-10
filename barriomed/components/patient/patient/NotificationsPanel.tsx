@@ -10,8 +10,8 @@ import {
     Pressable,
 } from 'react-native';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
-import { useNotifications } from '../../../lib/NotificationContext';
-import { AppNotification, NotificationType } from '../../../lib/notificationService';
+import { useNotifications } from '../../../backend/lib/NotificationContext';
+import { AppNotification, NotificationType } from '../../../backend/lib/notificationService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

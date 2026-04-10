@@ -1,6 +1,6 @@
 import React from 'react';
 import { Text, TouchableOpacity } from 'react-native';
-import { StockStatus } from '../../../lib/inventoryService';
+import { StockStatus } from '../../../backend/lib/inventoryService';
 
 interface StockToggleProps {
     status: StockStatus;

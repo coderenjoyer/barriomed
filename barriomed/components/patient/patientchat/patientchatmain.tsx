@@ -16,9 +16,9 @@ import {
     Conversation,
     DoctorAvailability,
     isEffectivelyAvailable,
-} from '../../../lib/chatService';
+} from '../../../backend/lib/chatService';
 import { PatientChatWindow } from './patientchatwindow';
-import { useAuth } from '../../../lib/AuthContext';
+import { useAuth } from '../../../backend/lib/AuthContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

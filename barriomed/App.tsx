@@ -5,12 +5,12 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { LoginPage, UserRole } from './components/login/loginscreen';
-import { UserDashboard } from './mobile/userdashboard';
+import { UserDashboard } from './components/mobile/userdashboard';
 import { StaffNavigator } from './components/staff/StaffNavigator';
-import { DoctorDashboard } from './mobile/doctordashboard';
+import { DoctorDashboard } from './components/mobile/doctordashboard';
 import { AdminDashboard } from './components/admin/admindashboard';
-import { AuthProvider, useAuth } from './lib/AuthContext';
-import { NotificationProvider } from './lib/NotificationContext';
+import { AuthProvider, useAuth } from './backend/lib/AuthContext';
+import { NotificationProvider } from './backend/lib/NotificationContext';
 import { LogBox, Platform, UIManager } from 'react-native';
 
 // Suppress New Architecture warnings for LayoutAnimation

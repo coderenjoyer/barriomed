@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Status
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
 import { MedicineStockCard } from './medicinecards';
-import { inventoryService, InventoryItem } from '../../../lib/inventoryService';
+import { inventoryService, InventoryItem } from '../../../backend/lib/inventoryService';
 
 interface BotikaPageProps {
     userId?: string;

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { View, Text, Animated } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { ServiceType } from '../patient/selectservice'
+import { ServiceType } from '../patient/patient/selectservice'
 
 export interface Patient {
     id: string

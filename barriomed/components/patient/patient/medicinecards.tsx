@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { FontAwesome5 } from '@expo/vector-icons';
-import { InventoryItem, StockStatus } from '../../lib/inventoryService';
+import { InventoryItem, StockStatus } from '../../../backend/lib/inventoryService';
 
 interface MedicineStockCardProps {
     medicine: InventoryItem;

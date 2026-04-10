@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Alert, ActivityIndicator, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { StockToggle } from './StockToggle';
-import { inventoryService, InventoryItem, StockStatus } from '../../../lib/inventoryService';
+import { inventoryService, InventoryItem, StockStatus } from '../../../backend/lib/inventoryService';
 
 export function InventoryMaster() {
     const [inventory, setInventory] = useState<InventoryItem[]>([]);

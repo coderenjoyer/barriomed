@@ -19,7 +19,7 @@ import {
     type PatientMedicalInfo,
     type PatientMedicalFormData,
     type BloodType,
-} from '../../../lib/patientMedicalService';
+} from '../../../backend/lib/patientMedicalService';
 
 // ---------------------------------------------------------------------------
 // Types

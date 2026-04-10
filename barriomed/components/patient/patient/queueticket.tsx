@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, Animated } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { ServiceType } from './selectservice';
-import { QueueStatus } from '../../../lib/queueService';
+import { QueueStatus } from '../../../backend/lib/queueService';
 
 interface QueueTicketProps {
     serviceType: ServiceType;

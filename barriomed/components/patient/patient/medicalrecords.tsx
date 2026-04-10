@@ -7,7 +7,7 @@ import {
     TouchableOpacity,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { fetchMedicalRecords, type MedicalRecord } from '../../../lib/medicalRecordsService';
+import { fetchMedicalRecords, type MedicalRecord } from '../../../backend/lib/medicalRecordsService';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface PatientMedicalRecordsProps {

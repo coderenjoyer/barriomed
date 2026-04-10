@@ -11,7 +11,7 @@ import {
     UIManager,
 } from 'react-native'
 import { Pill, ChevronDown, ChevronUp, Clock, User, RefreshCcw } from 'lucide-react-native'
-import { fetchPrescriptionsForPatient, type Prescription, type PrescriptionMedication } from '../../../lib/medicalRecordsService'
+import { fetchPrescriptionsForPatient, type Prescription, type PrescriptionMedication } from '../../../backend/lib/medicalRecordsService'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true)

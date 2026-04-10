@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { queueService } from '../../lib/queueService';
+import { queueService } from '../../backend/lib/queueService';
 import { PatientQueueItem, Patient } from './patientqueuecall';
 import { ServiceType } from '../patient/patient/selectservice';
 

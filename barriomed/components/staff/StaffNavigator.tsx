@@ -5,7 +5,7 @@ import { QueueCommander } from './quequecaller';
 import { QueueHistory } from './queuehistory';
 import { InventoryMaster } from './medicine_stocks/inventory';
 import { Feather } from '@expo/vector-icons';
-import { useAuth } from '../../lib/AuthContext';
+import { useAuth } from '../../backend/lib/AuthContext';
 
 const Stack = createNativeStackNavigator();
 

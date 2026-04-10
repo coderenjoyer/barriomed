@@ -3,9 +3,9 @@ import { View, Text, TouchableOpacity, ScrollView, LayoutAnimation, UIManager, P
 import { useNavigation } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import { PatientQueueItem, Patient } from './patientqueuecall'
-import { queueService, QueueStatus } from '../../lib/queueService'
-import { supabase } from '../../lib/supabase'
-import { useAuth } from '../../lib/AuthContext'
+import { queueService, QueueStatus } from '../../backend/lib/queueService'
+import { supabase } from '../../backend/lib/supabase'
+import { useAuth } from '../../backend/lib/AuthContext'
 import { ServiceType } from '../patient/patient/selectservice'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {

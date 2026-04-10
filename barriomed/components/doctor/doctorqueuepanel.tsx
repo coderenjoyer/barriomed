@@ -14,9 +14,9 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { PatientQueueItem, Patient } from '../staff/patientqueuecall';
-import { queueService } from '../../lib/queueService';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../lib/AuthContext';
+import { queueService } from '../../backend/lib/queueService';
+import { supabase } from '../../backend/lib/supabase';
+import { useAuth } from '../../backend/lib/AuthContext';
 import { ServiceType } from '../patient/patient/selectservice';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {

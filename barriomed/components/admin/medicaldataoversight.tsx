@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, TextInput, ActivityIndicator } from 'react-native'
 import { Feather, FontAwesome5 } from '@expo/vector-icons'
-import { adminService } from '../../lib/adminService'
+import { adminService } from '../../backend/lib/adminService'
 
 type RecordTab = 'records' | 'prescriptions'
 

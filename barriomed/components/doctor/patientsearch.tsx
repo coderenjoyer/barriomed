@@ -15,8 +15,8 @@ import {
 } from 'react-native'
 import { Search, QrCode, User, ChevronRight, RefreshCcw, Clock, Zap } from 'lucide-react-native'
 import { Feather } from '@expo/vector-icons'
-import { searchPatients, fetchPatientById, type PatientSummary } from '../../lib/medicalRecordsService'
-import { queueService, type RecentQueuedPatient } from '../../lib/queueService'
+import { searchPatients, fetchPatientById, type PatientSummary } from '../../backend/lib/medicalRecordsService'
+import { queueService, type RecentQueuedPatient } from '../../backend/lib/queueService'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true)

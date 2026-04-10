@@ -1,24 +1,26 @@
+//for code cleaning
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5 } from '@expo/vector-icons';
-import { useAuth } from '../lib/AuthContext';
-import { useNotifications } from '../lib/NotificationContext';
-import { fetchMedicalInfo, type PatientMedicalInfo } from '../lib/patientMedicalService';
-import { PatientSettingsForm } from '../components/patient/patient/PatientSettingsForm';
-import { BottomNavigation } from '../components/patient/patient/bottomnav';
-import { ServiceSelector, ServiceType } from '../components/patient/patient/selectservice';
-import { QueueTicket } from '../components/patient/patient/queueticket';
-import { BotikaPage } from '../components/patient/patient/botikamanagement';
-import { FloatingActionButton } from '../components/patient/patient/floatingactionbutton';
-import { FamilyMemberCard, FamilyMember, YellowCardDetails } from '../components/patient/patient/yellowcard';
-import { PatientMedicalRecords } from '../components/patient/patient/medicalrecords';
-import { PatientChatMain } from '../components/patient/patientchat/patientchatmain';
-import { PatientPrescriptions } from '../components/patient/patient/patientprescriptions';
-import { NotificationsPanel } from '../components/patient/patient/NotificationsPanel';
-import { queueService, QueueTicketData } from '../lib/queueService';
+import { useAuth } from '../../backend/lib/AuthContext';
+import { useNotifications } from '../../backend/lib/NotificationContext';
+import { fetchMedicalInfo, type PatientMedicalInfo } from '../../backend/lib/patientMedicalService';
+import { PatientSettingsForm } from '../../components/patient/patient/PatientSettingsForm';
+import { BottomNavigation } from '../../components/patient/patient/bottomnav';
+import { ServiceSelector, ServiceType } from '../../components/patient/patient/selectservice';
+import { QueueTicket } from '../../components/patient/patient/queueticket';
+import { BotikaPage } from '../../components/patient/patient/botikamanagement';
+import { FloatingActionButton } from '../../components/patient/patient/floatingactionbutton';
+import { FamilyMemberCard, FamilyMember, YellowCardDetails } from '../../components/patient/patient/yellowcard';
+import { PatientMedicalRecords } from '../../components/patient/patient/medicalrecords';
+import { PatientChatMain } from '../../components/patient/patientchat/patientchatmain';
+import { PatientPrescriptions } from '../../components/patient/patient/patientprescriptions';
+import { NotificationsPanel } from '../../components/patient/patient/NotificationsPanel';
+import { queueService, QueueTicketData } from '../../backend/lib/queueService';
 import { Alert } from 'react-native';
-import { NotificationType } from '../lib/notificationService';
+import { NotificationType } from '../../backend/lib/notificationService';
 
 // Family members – empty until real data is bound
 const initialFamilyMembers: FamilyMember[] = [];

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Switch, ActivityIndicator } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { adminService, AdminLog, InventoryAuditAction } from '../../lib/adminService'
-import { useAuth } from '../../lib/AuthContext'
+import { adminService, AdminLog, InventoryAuditAction } from '../../backend/lib/adminService'
+import { useAuth } from '../../backend/lib/AuthContext'
 
 type LogType = 'all' | 'users' | 'inventory' | 'queue_transactions' | 'notifications'
 

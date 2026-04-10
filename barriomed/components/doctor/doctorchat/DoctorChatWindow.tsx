@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { Ionicons } from '@expo/vector-icons';
-import { ChatMessage, chatService, Conversation } from '../../../lib/chatService';
+import { ChatMessage, chatService, Conversation } from '../../../backend/lib/chatService';
 
 // ─── Message Bubble ──────────────────────────────────────────────────────────
 

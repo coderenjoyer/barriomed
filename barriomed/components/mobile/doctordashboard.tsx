@@ -10,14 +10,14 @@ import {
     Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { PatientLookup } from '../components/doctor/patientsearch';
-import { ConsultationHistory } from '../components/doctor/consultationhistory';
-import { ConsultationForm } from '../components/doctor/consultationform';
-import { PrescriptionBuilder } from '../components/doctor/patientprescription';
-import { DoctorQueuePanel } from '../components/doctor/doctorqueuepanel';
-import { DoctorChatMain } from '../components/doctor/doctorchat/DoctorChatMain';
-import { useAuth } from '../lib/AuthContext';
-import { queueService } from '../lib/queueService';
+import { PatientLookup } from '../doctor/patientsearch';
+import { ConsultationHistory } from '../doctor/consultationhistory';
+import { ConsultationForm } from '../doctor/consultationform';
+import { PrescriptionBuilder } from '../doctor/patientprescription';
+import { DoctorQueuePanel } from '../doctor/doctorqueuepanel';
+import { DoctorChatMain } from '../doctor/doctorchat/DoctorChatMain';
+import { useAuth } from '../../backend/lib/AuthContext';
+import { queueService } from '../../backend/lib/queueService';
 import {
     fetchPatientById,
     fetchConsultationsForPatient,
@@ -32,7 +32,7 @@ import {
     type ConsultationRecord,
     type MedicalRecord,
     type PrescriptionMedication,
-} from '../lib/medicalRecordsService';
+} from '../../backend/lib/medicalRecordsService';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 interface ServingPatient {

@@ -14,8 +14,8 @@ import {
     Alert,
 } from 'react-native'
 import { Pill, Plus, Trash2, AlertCircle, Search, X } from 'lucide-react-native'
-import { supabase } from '../../lib/supabase'
-import type { PrescriptionMedication } from '../../lib/medicalRecordsService'
+import { supabase } from '../../backend/lib/supabase'
+import type { PrescriptionMedication } from '../../backend/lib/medicalRecordsService'
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
     UIManager.setLayoutAnimationEnabledExperimental(true)

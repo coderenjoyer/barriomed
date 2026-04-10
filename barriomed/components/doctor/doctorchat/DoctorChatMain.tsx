@@ -10,10 +10,10 @@ import {
     Alert,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { chatService, Conversation, DoctorAvailability } from '../../../lib/chatService';
+import { chatService, Conversation, DoctorAvailability } from '../../../backend/lib/chatService';
 import { AvailabilityToggle } from './AvailabilityToggle';
 import { DoctorChatWindow } from './DoctorChatWindow';
-import { useAuth } from '../../../lib/AuthContext';
+import { useAuth } from '../../../backend/lib/AuthContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

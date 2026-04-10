@@ -10,7 +10,7 @@ import {
     UIManager,
 } from 'react-native'
 import { Calendar, User, ChevronDown, ChevronUp, FileText, Pill, Trash2 } from 'lucide-react-native'
-import type { ConsultationRecord } from '../../lib/medicalRecordsService'
+import type { ConsultationRecord } from '../../backend/lib/medicalRecordsService'
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {

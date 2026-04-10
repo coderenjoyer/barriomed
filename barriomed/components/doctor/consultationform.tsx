@@ -14,7 +14,7 @@ import {
     createConsultation,
     createPrescription,
     type PrescriptionMedication,
-} from '../../lib/medicalRecordsService'
+} from '../../backend/lib/medicalRecordsService'
 
 interface ConsultationFormProps {
     patientId: string

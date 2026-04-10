@@ -10,8 +10,8 @@ import {
     Animated,
 } from 'react-native'
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons'
-import { adminService, FeatureName, FeatureToggle } from '../../lib/adminService'
-import { useAuth } from '../../lib/AuthContext'
+import { adminService, FeatureName, FeatureToggle } from '../../backend/lib/adminService'
+import { useAuth } from '../../backend/lib/AuthContext'
 
 // ─── Feature metadata ─────────────────────────────────────────────────────────
 

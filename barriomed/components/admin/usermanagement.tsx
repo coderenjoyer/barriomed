@@ -2,8 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import { Feather } from '@expo/vector-icons'
 import { AddUserModal } from './usermodal'
-import { adminService, AdminUser, AdminRole, logAdminAction } from '../../lib/adminService'
-import { useAuth } from '../../lib/AuthContext'
+import { adminService, AdminUser, AdminRole, logAdminAction } from '../../backend/lib/adminService'
+import { useAuth } from '../../backend/lib/AuthContext'
 
 // These match the DbRole enum in AuthContext / Supabase
 export type SystemRole = 'patient' | 'doctor' | 'health_staff' | 'system_admin'

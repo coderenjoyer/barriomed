@@ -11,7 +11,7 @@ import {
     Modal,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { DoctorAvailability, WorkingHours, chatService, isWithinWorkingHours } from '../../../lib/chatService';
+import { DoctorAvailability, WorkingHours, chatService, isWithinWorkingHours } from '../../../backend/lib/chatService';
 
 interface Props {
     doctorId: string;

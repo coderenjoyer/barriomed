@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { useAuth } from '../../lib/AuthContext';
+import { useAuth } from '../../backend/lib/AuthContext';
 
 export interface LoginFormData {
     email: string;

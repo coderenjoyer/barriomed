@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { adminService } from '../../lib/adminService'
-import { useAuth } from '../../lib/AuthContext'
+import { adminService } from '../../backend/lib/adminService'
+import { useAuth } from '../../backend/lib/AuthContext'
 
 type QueueStatus = 'Waiting' | 'In Progress' | 'Completed' | 'Skipped'
 type TabView = 'active' | 'history'

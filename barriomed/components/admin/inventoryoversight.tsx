@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Modal } from 'react-native'
 import { Feather } from '@expo/vector-icons'
-import { adminService, InventoryItem } from '../../lib/adminService'
-import { useAuth } from '../../lib/AuthContext'
+import { adminService, InventoryItem } from '../../backend/lib/adminService'
+import { useAuth } from '../../backend/lib/AuthContext'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

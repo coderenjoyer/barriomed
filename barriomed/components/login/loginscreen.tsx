@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useAuth, type UiRole } from '../lib/AuthContext';
+import { useAuth, type UiRole } from '../../lib/AuthContext';
 
 export type UserRole = 'patient' | 'staff' | 'admin' | 'doctor';
 

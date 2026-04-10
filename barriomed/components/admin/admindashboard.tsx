@@ -7,9 +7,9 @@ import { UserManagement } from './usermanagement';
 import { InventoryOversight } from './inventoryoversight';
 import { QueueOversight } from './queueoversight';
 import { MedicalDataOversight } from './medicaldataoversight';
-import { useAuth } from '../../lib/AuthContext';
+import { useAuth } from '../../backend/lib/AuthContext';
 
-import { UserRole } from '../../login/loginscreen';
+import { UserRole } from '../login/loginscreen';
 
 // ─── Platform Guard ─────────────────────────────────────────────────────────
 // If accessed from a non-web environment, render a block screen instead of

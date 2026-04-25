@@ -9,8 +9,8 @@ export function InventoryMaster() {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
-    
-    // Modal state for Add/Edit
+
+
     const [isModalVisible, setModalVisible] = useState(false);
     const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
     const [formData, setFormData] = useState<Partial<InventoryItem>>({});
@@ -19,7 +19,7 @@ export function InventoryMaster() {
     useEffect(() => {
         loadInventory();
 
-        // Subscribe to real-time changes
+
         const unsubscribe = inventoryService.subscribeToInventoryChanges((payload) => {
             loadInventory();
         });
@@ -37,13 +37,13 @@ export function InventoryMaster() {
     };
 
     const handleStatusChange = async (item_id: string, newStatus: StockStatus) => {
-        // Optimistic UI update
+
         setInventory(prev => prev.map(item => item.item_id === item_id ? { ...item, stock_status: newStatus, last_updated: new Date().toISOString() } : item));
-        
+
         const success = await inventoryService.updateStockStatus(item_id, newStatus);
         if (!success) {
             Alert.alert('Error', 'Failed to update stock status.');
-            loadInventory(); // Revert optimistic update
+            loadInventory();
         }
     };
 
@@ -63,16 +63,16 @@ export function InventoryMaster() {
 
     const handleBatchStatus = async (status: StockStatus) => {
         if (selectedItems.length === 0) return;
-        
-        // Optimistic 
-        setInventory(prev => prev.map(item => 
+
+
+        setInventory(prev => prev.map(item =>
             selectedItems.includes(item.item_id) ? { ...item, stock_status: status } : item
         ));
-        
+
         if (status === 'AVAILABLE' && selectedItems.length === inventory.length) {
             await inventoryService.markAllAvailable();
         } else {
-            // We sequentially update each item
+
             await Promise.all(selectedItems.map(id => inventoryService.updateStockStatus(id, status)));
         }
 
@@ -92,7 +92,7 @@ export function InventoryMaster() {
     };
 
     const handleDeleteClick = (id: string) => {
-        // Alert.alert is a no-op on web — use window.confirm instead
+
         if (Platform.OS === 'web') {
             const item = inventory.find(i => i.item_id === id);
             const name = item ? `"${item.generic_name}"` : 'this item';
@@ -110,7 +110,7 @@ export function InventoryMaster() {
             return;
         }
 
-        // Mobile: use Alert.alert
+
         Alert.alert('Delete Medicine', 'Are you sure you want to delete this medicine?', [
             { text: 'Cancel', style: 'cancel' },
             {
@@ -261,7 +261,7 @@ export function InventoryMaster() {
                         </View>
 
                         {/* Table/Grid */}
-                        <View 
+                        <View
                             className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex-1 min-h-[400px]"
                             style={Platform.OS === 'web' ? { maxHeight: 'calc(100vh - 260px)' as any } : undefined}
                         >

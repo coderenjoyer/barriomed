@@ -1,14 +1,15 @@
 import { supabase } from './supabase';
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_KEY ?? '';
-
 /**
  * Fire-and-forget: invokes the twilio-queue-alert Edge Function so the next
  * patient receives an SMS alert. Silently swallows errors so a Twilio failure
  * never breaks the core queue flow.
  *
- * @param userId      The Supabase user_id of the patient being called (null for walk‑ins).
+ * Uses supabase.functions.invoke() so the active user session JWT is attached
+ * automatically — avoids the 401 that occurs when passing the static anon key
+ * to a function that has verify_jwt = true.
+ *
+ * @param userId      The Supabase user_id of the patient being called (null for walk-ins).
  * @param queueNumber The queue number that was just promoted to SERVING.
  */
 async function sendTwilioQueueAlert(userId: string | null, queueNumber: number): Promise<void> {
@@ -16,17 +17,14 @@ async function sendTwilioQueueAlert(userId: string | null, queueNumber: number):
     if (!userId) return;
 
     try {
-        const edgeUrl = `${SUPABASE_URL}/functions/v1/twilio-queue-alert`;
-        await fetch(edgeUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-            },
-            body: JSON.stringify({ user_id: userId, queue_number: queueNumber }),
+        const { error } = await supabase.functions.invoke('twilio-queue-alert', {
+            body: { user_id: userId, queue_number: queueNumber },
         });
+        if (error) {
+            console.warn('[queueService] Twilio alert error (non-critical):', error.message);
+        }
     } catch (err) {
-        console.warn('[queueService] Twilio alert failed (non‑critical):', err);
+        console.warn('[queueService] Twilio alert failed (non-critical):', err);
     }
 }
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -398,12 +396,13 @@ export const queueService = {
 
         // Fire-and-forget SMS alert to the patient being called.
         // The RPC returns an array of promoted rows; we take the first one.
+        // NOTE: column names are prefixed with 'called_' and the updated RPC also returns 'called_user_id'.
         if (Array.isArray(data) && data.length > 0) {
             const calledTicket = data[0];
-            sendTwilioQueueAlert(
-                calledTicket.user_id ?? null,
-                calledTicket.queue_number ?? 0
-            );
+            // Support both the updated RPC (called_user_id) and the legacy shape (user_id)
+            const userId: string | null = calledTicket.called_user_id ?? calledTicket.user_id ?? null;
+            const queueNumber: number = calledTicket.called_queue_number ?? calledTicket.queue_number ?? 0;
+            sendTwilioQueueAlert(userId, queueNumber);
         }
 
         return data;

@@ -6,18 +6,55 @@ declare const Deno: {
   env: { get: (key: string) => string | undefined };
 };
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+/**
+ * Normalises a Philippine mobile number to E.164 format (+63XXXXXXXXXX).
+ * Handles the most common storage formats:
+ *   09XXXXXXXXX  → +639XXXXXXXXX
+ *   9XXXXXXXXXX  → +639XXXXXXXXX  (already missing the leading 0)
+ *   +63XXXXXXXXX → returned as-is
+ * Numbers that already start with '+' are returned unchanged so international
+ * numbers stored by edge cases are not accidentally mangled.
+ */
+function normalizePHPhone(raw: string): string {
+  const digits = raw.replace(/\s+/g, '').trim();
+  if (digits.startsWith('+')) return digits;          // already E.164
+  if (digits.startsWith('09')) return '+63' + digits.slice(1); // 09XX → +639XX
+  if (digits.startsWith('9') && digits.length === 10) return '+63' + digits; // 9XX (10d)
+  // Fallback: prepend + and hope for the best (e.g. already stored as 639XXXXXXXXX)
+  return '+' + digits;
+}
+
 Deno.serve(async (req: Request) => {
+  // ── 0. Handle CORS preflight ──────────────────────────────────────────────
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   try {
     // ── 1. Parse request body ────────────────────────────────────────────────
     // Accepts: { user_id: string | null, queue_number: number }
     // Legacy support: { patient_number: string, queue_number: number }
+    if (req.method !== 'POST') {
+      return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+        status: 405,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
+
     const body = await req.json()
     const { user_id, queue_number, patient_number: legacyPhone } = body
 
     // ── 2. Load secrets ──────────────────────────────────────────────────────
-    const TWILIO_ACCOUNT_SID   = Deno.env.get('TWILIO_ACCOUNT_SID')
-    const TWILIO_AUTH_TOKEN    = Deno.env.get('TWILIO_AUTH_TOKEN')
-    const TWILIO_PHONE_NUMBER  = Deno.env.get('TWILIO_PHONE_NUMBER')
+    // NOTE: The stored secret names use double-L (TWILLIO_) to match what was
+    // set in Supabase. TWILIO_PHONE_NUMBER uses the correct single-L spelling.
+    const TWILIO_ACCOUNT_SID   = Deno.env.get('TWILLIO_ACCOUNT_SID')
+    const TWILIO_AUTH_TOKEN    = Deno.env.get('TWILLIO_AUTH_TOKEN')
+    const TWILIO_PHONE_NUMBER  = Deno.env.get('TWILIO_PHONE_NUMBER') ?? Deno.env.get('TWILLIO_PHONE_NUMBER')
     const SUPABASE_URL         = Deno.env.get('SUPABASE_URL')
     const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
@@ -57,9 +94,12 @@ Deno.serve(async (req: Request) => {
     if (!patientPhone) {
       return new Response(
         JSON.stringify({ success: false, reason: 'No phone number for this patient. SMS skipped.' }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // ── 4b. Normalise to E.164 ───────────────────────────────────────────────
+    patientPhone = normalizePHPhone(patientPhone);
 
     // ── 5. Build the SMS message ─────────────────────────────────────────────
     // Keep it under 160 characters and avoid emojis for reliable delivery.
@@ -93,7 +133,7 @@ Deno.serve(async (req: Request) => {
 
     return new Response(
       JSON.stringify({ success: true, sid: twilioData.sid }),
-      { headers: { 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
   } catch (error: unknown) {
@@ -101,7 +141,7 @@ Deno.serve(async (req: Request) => {
     console.error('[twilio-queue-alert] Error:', errorMessage)
     return new Response(
       JSON.stringify({ error: errorMessage }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
 })

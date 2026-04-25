@@ -275,15 +275,21 @@ export const adminService = {
         userId: string;
         active: boolean;
         adminId: string;
-    }): Promise<{ success: boolean; error?: string }> {
-        const { error } = await supabase
+    }): Promise<{ success: boolean; error?: string; updatedStatus?: boolean }> {
+        const { data, error } = await supabase
             .from('users')
             .update({ is_active: params.active })
-            .eq('id', params.userId);
+            .eq('id', params.userId)
+            .select('is_active')
+            .maybeSingle();
 
         if (error) {
             console.error('[adminService] setUserActiveStatus error:', error);
             return { success: false, error: error.message };
+        }
+
+        if (!data) {
+            return { success: false, error: 'Update failed. User not found or permission denied.' };
         }
 
         await logAdminAction({
@@ -291,10 +297,10 @@ export const adminService = {
             action: params.active ? 'Reactivated user account' : 'Deactivated user account',
             resourceType: 'users',
             resourceId: params.userId,
-            metadata: { is_active: params.active },
+            metadata: { status: params.active ? 'active' : 'deactivated' },
         });
 
-        return { success: true };
+        return { success: true, updatedStatus: data.is_active };
     },
 
     // ── Inventory ─────────────────────────────────────────────────────────────
@@ -850,118 +856,8 @@ export const adminService = {
     },
 
     // ── Patient Account Deletion ───────────────────────────────────────────────
+    // Deletion has been restricted. Admins should use Deactivate functionality instead.
 
-    /**
-     * Deletes a patient account and ALL associated data in a defined sequence.
-     * Writes audit log entries before and after deletion.
-     *
-     * Cascade order (FK-safe):
-     *   1. queue_transactions
-     *   2. chat_messages
-     *   3. chat_sessions
-     *   4. medical_records
-     *   5. prescriptions
-     *   6. notifications
-     *   7. users (profile row)
-     *   8. auth.users (via supabase.auth.admin — requires service_role on server,
-     *      falls back gracefully if unavailable from client)
-     *
-     * @returns success + counts of deleted rows per table, or an error string.
-     */
-    async deletePatientAccount(params: {
-        patientId: string;
-        patientName: string;
-        adminId: string;
-        adminName: string;
-    }): Promise<{
-        success: boolean;
-        affectedRecords?: Record<string, number>;
-        error?: string;
-    }> {
-        const { patientId, patientName, adminId, adminName } = params;
-        const now = new Date().toISOString();
-
-        // Tables to cascade-delete (in dependency order)
-        const cascadeTables: Array<{ table: string; column: string }> = [
-            { table: 'queue_transactions',  column: 'user_id'    },
-            { table: 'chat_messages',       column: 'sender_id'  },
-            { table: 'chat_sessions',       column: 'patient_id' },
-            { table: 'medical_records',     column: 'patient_id' },
-            { table: 'prescriptions',       column: 'patient_id' },
-            { table: 'notifications',       column: 'user_id'    },
-        ];
-
-        const affectedRecords: Record<string, number> = {};
-
-        // ── Step 1: Write pre-deletion audit log ────────────────────────────
-        await logAdminAction({
-            adminId,
-            action: `DELETE_PATIENT_ACCOUNT: Initiated deletion of patient "${patientName}" (${patientId})`,
-            resourceType: 'users',
-            resourceId: patientId,
-            metadata: {
-                patient_id: patientId,
-                patient_name: patientName,
-                initiated_by: adminName,
-                timestamp: now,
-            },
-            performedByRole: 'system_admin',
-        });
-
-        // ── Step 2: Cascade-delete related records ───────────────────────────
-        for (const { table, column } of cascadeTables) {
-            try {
-                const { data, error } = await supabase
-                    .from(table)
-                    .delete()
-                    .eq(column, patientId)
-                    .select('*');
-
-                if (error) {
-                    // Non-fatal: some tables may not have the column — log and continue
-                    console.warn(`[adminService] deletePatientAccount: could not delete from ${table}:`, error.message);
-                    affectedRecords[table] = 0;
-                } else {
-                    affectedRecords[table] = data?.length ?? 0;
-                }
-            } catch (err) {
-                console.warn(`[adminService] deletePatientAccount: unexpected error for table ${table}:`, err);
-                affectedRecords[table] = 0;
-            }
-        }
-
-        // ── Step 3: Delete profile row from users table ──────────────────────
-        const { data: deletedProfile, error: profileError } = await supabase
-            .from('users')
-            .delete()
-            .eq('id', patientId)
-            .select('*');
-
-        if (profileError) {
-            console.error('[adminService] deletePatientAccount: failed to delete user profile:', profileError);
-            return { success: false, error: `Failed to delete user profile: ${profileError.message}` };
-        }
-
-        affectedRecords['users'] = deletedProfile?.length ?? 0;
-
-        // ── Step 4: Write cascade-delete audit log ───────────────────────────
-        await logAdminAction({
-            adminId,
-            action: `CASCADE_DELETE: All records for patient "${patientName}" (${patientId}) permanently removed`,
-            resourceType: 'users',
-            resourceId: patientId,
-            metadata: {
-                patient_id: patientId,
-                patient_name: patientName,
-                performed_by: adminName,
-                affected_records: affectedRecords,
-                timestamp: new Date().toISOString(),
-            },
-            performedByRole: 'system_admin',
-        });
-
-        return { success: true, affectedRecords };
-    },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

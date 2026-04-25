@@ -269,7 +269,7 @@ export function LoginPage({ onLoginComplete }: LoginPageProps) {
             onLoginComplete?.(role);
         } else {
             setPinInput('');
-            setError('Incorrect PIN. Please try again.');
+            setError(result.error || 'Incorrect PIN. Please try again.');
         }
     };
 

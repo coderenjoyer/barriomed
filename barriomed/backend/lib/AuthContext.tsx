@@ -97,6 +97,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const loadProfile = async (sess: Session | null) => {
         if (sess?.user) {
             const profile = await fetchUserProfile(sess.user.id);
+
+            // If profile is missing (RLS block) or deactivated, force a sign-out immediately
+            if (!profile || (profile as any).is_active === false) {
+                await supabase.auth.signOut({ scope: 'local' });
+                setUserProfile(null);
+                setUiRole(null);
+                return;
+            }
+
             setUserProfile(profile);
             if (profile?.role) {
                 setUiRole(DB_ROLE_TO_UI[profile.role] ?? null);
@@ -242,10 +251,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
         // Check if user is deactivated (via metadata)
         if (data.session?.user?.user_metadata?.status === 'Inactive') {
+            await supabase.from('auth_logs').insert({
+                patient_id: data.session.user.id,
+                attempt_status: 'blocked',
+            });
             await supabase.auth.signOut();
             return {
                 success: false,
-                error: 'This account has been deactivated. Please contact an administrator.',
+                error: 'Account is deactivated. Contact administrator.',
             };
         }
 
@@ -258,12 +271,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (data.session?.user) {
             const profile = await fetchUserProfile(data.session.user.id);
 
-            // Block login if the account has been deactivated by an admin
-            if (profile && (profile as any).is_active === false) {
+            // Block login if the account has been deactivated by an admin or if profile fetch was blocked by RLS
+            if (!profile || (profile as any).is_active === false) {
+                // Log the blocked attempt before signing out
+                await supabase.from('auth_logs').insert({
+                    patient_id: data.session.user.id,
+                    attempt_status: 'blocked',
+                });
+
                 await supabase.auth.signOut({ scope: 'local' });
                 return {
                     success: false,
-                    error: 'This account has been deactivated. Please contact an administrator.',
+                    error: 'Account is deactivated. Contact administrator.',
                 };
             }
 
@@ -273,7 +292,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 .select('is_enabled')
                 .eq('feature', 'login')
                 .maybeSingle();
-            
+
             if (featureData && featureData.is_enabled === false) {
                 if (profile?.role !== 'system_admin') {
                     await supabase.auth.signOut({ scope: 'local' });
@@ -318,7 +337,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.error('Exception during logout:', err);
             try {
                 await supabase.auth.signOut({ scope: 'local' });
-            } catch (e) {}
+            } catch (e) { }
         }
 
         // Final fallback: manually wipe the session token from local storage

@@ -18,171 +18,7 @@ const ROLE_CONFIG: Record<SystemRole, { label: string; bg: string; text: string;
     system_admin: { label: 'System Admin', bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' },
 }
 
-// ── Delete Confirmation Modal ─────────────────────────────────────────────────
 
-interface DeletePatientModalProps {
-    patient: AdminUser | null
-    onClose: () => void
-    onConfirm: (patient: AdminUser) => Promise<void>
-    isDeleting: boolean
-}
-
-function DeletePatientModal({ patient, onClose, onConfirm, isDeleting }: DeletePatientModalProps) {
-    const [nameInput, setNameInput] = useState('')
-
-    if (!patient) return null
-
-    const expectedName = patient.displayName.trim()
-    const isMatch = nameInput.trim() === expectedName
-    const canDelete = isMatch && !isDeleting
-
-    const handleConfirm = async () => {
-        if (!canDelete) return
-        await onConfirm(patient)
-    }
-
-    return (
-        <Modal
-            visible={!!patient}
-            animationType="fade"
-            transparent
-            onRequestClose={onClose}
-        >
-            <KeyboardAvoidingView
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                className="flex-1"
-            >
-                {/* Scrim */}
-                <View className="flex-1 bg-black/60 items-center justify-center px-4">
-                    <View className="w-full max-w-md bg-white rounded-3xl overflow-hidden shadow-2xl">
-
-                        {/* Header */}
-                        <View className="bg-rose-600 px-6 pt-6 pb-5">
-                            <View className="flex-row items-center gap-3 mb-1">
-                                <View className="w-9 h-9 rounded-full bg-white/20 items-center justify-center">
-                                    <Feather name="alert-triangle" size={18} color="white" />
-                                </View>
-                                <Text className="text-white text-lg font-bold">Delete Patient Account</Text>
-                            </View>
-                            <Text className="text-rose-100 text-sm">
-                                This action is permanent and cannot be undone.
-                            </Text>
-                        </View>
-
-                        {/* Body */}
-                        <View className="px-6 py-5 gap-4">
-                            {/* What will be deleted */}
-                            <View className="bg-rose-50 border border-rose-200 rounded-2xl p-4 gap-1.5">
-                                <Text className="text-rose-800 font-semibold text-sm mb-1">
-                                    The following data will be permanently deleted:
-                                </Text>
-                                {[
-                                    'Patient account & profile',
-                                    'Queue transactions',
-                                    'Chat sessions & messages',
-                                    'Medical records',
-                                    'Prescriptions',
-                                    'Notifications',
-                                ].map(item => (
-                                    <View key={item} className="flex-row items-center gap-2">
-                                        <Feather name="x-circle" size={12} color="#E11D48" />
-                                        <Text className="text-rose-700 text-xs">{item}</Text>
-                                    </View>
-                                ))}
-                            </View>
-
-                            {/* Name reference */}
-                            <View>
-                                <Text className="text-gray-500 text-xs mb-1.5">
-                                    You are about to delete:
-                                </Text>
-                                <View className="bg-gray-100 rounded-xl px-4 py-3 flex-row items-center gap-2">
-                                    <View className={`w-8 h-8 rounded-full items-center justify-center ${ROLE_CONFIG.patient.bg} border ${ROLE_CONFIG.patient.border}`}>
-                                        <Text className={`text-xs font-bold ${ROLE_CONFIG.patient.text}`}>
-                                            {patient.initials}
-                                        </Text>
-                                    </View>
-                                    <View>
-                                        <Text className="font-bold text-gray-900 text-sm">{patient.displayName}</Text>
-                                        <Text className="text-xs text-gray-500">{patient.email}</Text>
-                                    </View>
-                                </View>
-                            </View>
-
-                            {/* Name confirmation input */}
-                            <View>
-                                <Text className="text-gray-700 text-sm font-semibold mb-1.5">
-                                    Type <Text className="text-rose-600 font-bold">"{expectedName}"</Text> to confirm:
-                                </Text>
-                                <TextInput
-                                    value={nameInput}
-                                    onChangeText={setNameInput}
-                                    placeholder={expectedName}
-                                    placeholderTextColor="#9CA3AF"
-                                    autoCorrect={false}
-                                    autoCapitalize="words"
-                                    editable={!isDeleting}
-                                    className={`w-full border rounded-xl px-4 py-3 text-sm text-gray-900 ${
-                                        nameInput.length > 0
-                                            ? isMatch
-                                                ? 'border-emerald-400 bg-emerald-50'
-                                                : 'border-rose-300 bg-rose-50'
-                                            : 'border-gray-200 bg-white'
-                                    }`}
-                                />
-                                {nameInput.length > 0 && !isMatch && (
-                                    <View className="flex-row items-center gap-1.5 mt-1.5">
-                                        <Feather name="x-circle" size={13} color="#E11D48" />
-                                        <Text className="text-rose-600 text-xs font-medium">
-                                            Name does not match — deletion blocked
-                                        </Text>
-                                    </View>
-                                )}
-                                {isMatch && (
-                                    <View className="flex-row items-center gap-1.5 mt-1.5">
-                                        <Feather name="check-circle" size={13} color="#10B981" />
-                                        <Text className="text-emerald-600 text-xs font-medium">
-                                            Name confirmed — ready to delete
-                                        </Text>
-                                    </View>
-                                )}
-                            </View>
-                        </View>
-
-                        {/* Footer */}
-                        <View className="px-6 pb-6 flex-row gap-3">
-                            <TouchableOpacity
-                                onPress={onClose}
-                                disabled={isDeleting}
-                                className="flex-1 py-3 rounded-xl border border-gray-200 bg-gray-50 items-center"
-                            >
-                                <Text className="text-gray-700 font-semibold text-sm">Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={handleConfirm}
-                                disabled={!canDelete}
-                                className={`flex-1 py-3 rounded-xl items-center justify-center flex-row gap-2 ${
-                                    canDelete ? 'bg-rose-600' : 'bg-gray-200'
-                                }`}
-                            >
-                                {isDeleting ? (
-                                    <ActivityIndicator size="small" color="white" />
-                                ) : (
-                                    <>
-                                        <Feather name="trash-2" size={15} color={canDelete ? 'white' : '#9CA3AF'} />
-                                        <Text className={`font-bold text-sm ${canDelete ? 'text-white' : 'text-gray-400'}`}>
-                                            Delete Account
-                                        </Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </View>
-            </KeyboardAvoidingView>
-        </Modal>
-    )
-}
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
@@ -197,9 +33,6 @@ export function UserManagement() {
     const [error, setError] = useState<string | null>(null)
     const [actionFeedback, setActionFeedback] = useState<{ id: string; type: 'success' | 'error'; msg: string } | null>(null)
 
-    // Delete modal state
-    const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null)
-    const [isDeleting, setIsDeleting] = useState(false)
 
     const adminId = userProfile?.id ?? ''
     const adminName = userProfile ? `${userProfile.first_name} ${userProfile.last_name}` : 'System Admin'
@@ -252,11 +85,11 @@ export function UserManagement() {
             adminId,
         })
 
-        if (result.success) {
+        if (result.success && result.updatedStatus !== undefined) {
             setUsers(prev => prev.map(u =>
-                u.id === user.id ? { ...u, is_active: newActive } : u
+                u.id === user.id ? { ...u, is_active: result.updatedStatus! } : u
             ))
-            setActionFeedback({ id: user.id, type: 'success', msg: newActive ? 'Reactivated' : 'Deactivated' })
+            setActionFeedback({ id: user.id, type: 'success', msg: result.updatedStatus ? 'Reactivated' : 'Deactivated' })
         } else {
             setActionFeedback({ id: user.id, type: 'error', msg: result.error ?? 'Action failed' })
         }
@@ -280,35 +113,7 @@ export function UserManagement() {
         setLoadingId(null)
     }
 
-    // ── Delete Patient Account ─────────────────────────────────────────────────
 
-    const handleDeletePatient = async (patient: AdminUser) => {
-        setIsDeleting(true)
-        try {
-            const result = await adminService.deletePatientAccount({
-                patientId: patient.id,
-                patientName: patient.displayName,
-                adminId,
-                adminName,
-            })
-
-            if (result.success) {
-                setUsers(prev => prev.filter(u => u.id !== patient.id))
-                setDeleteTarget(null)
-                setActionFeedback({ id: patient.id, type: 'success', msg: 'Account deleted' })
-                setTimeout(() => setActionFeedback(null), 3000)
-            } else {
-                setDeleteTarget(null)
-                setActionFeedback({ id: patient.id, type: 'error', msg: result.error ?? 'Deletion failed' })
-                setTimeout(() => setActionFeedback(null), 3000)
-            }
-        } catch (err: any) {
-            setDeleteTarget(null)
-            setError('An unexpected error occurred during deletion.')
-        } finally {
-            setIsDeleting(false)
-        }
-    }
 
     // ── Filter / Search ───────────────────────────────────────────────────────
 
@@ -446,7 +251,6 @@ export function UserManagement() {
                             const feedback = actionFeedback?.id === user.id ? actionFeedback : null
                             const isSelf = user.id === adminId
                             const isAdmin = user.role === 'system_admin'
-                            const isPatient = user.role === 'patient'
                             return (
                                 <View
                                     key={user.id}
@@ -508,17 +312,6 @@ export function UserManagement() {
                                                         <Feather name="power" size={13} color={isActive ? '#F87171' : '#10B981'} />
                                                     </TouchableOpacity>
                                                 )}
-
-                                                {/* Delete — patients only, not self */}
-                                                {isPatient && !isSelf && (
-                                                    <TouchableOpacity
-                                                        onPress={() => setDeleteTarget(user)}
-                                                        className="p-2 rounded-lg border bg-rose-50 border-rose-100"
-                                                        accessibilityLabel={`Delete patient account: ${user.displayName}`}
-                                                    >
-                                                        <Feather name="trash-2" size={13} color="#E11D48" />
-                                                    </TouchableOpacity>
-                                                )}
                                             </>
                                         )}
                                     </View>
@@ -543,14 +336,6 @@ export function UserManagement() {
                     onAdd={handleAddUser}
                 />
             )}
-
-            {/* Delete Patient Confirmation Modal */}
-            <DeletePatientModal
-                patient={deleteTarget}
-                onClose={() => setDeleteTarget(null)}
-                onConfirm={handleDeletePatient}
-                isDeleting={isDeleting}
-            />
         </View>
     )
 }

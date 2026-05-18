@@ -4,7 +4,7 @@
     "slug": "barriomed",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/widbf_barriomed.ico",
+    "icon": "./assets/logo.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -17,7 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/widbf_barriomed.ico",
+        "foregroundImage": "./assets/nobg.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
@@ -26,7 +26,8 @@
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
         "POST_NOTIFICATIONS"
-      ]
+      ],
+      "package": "com.coderenjoyer.barriomed"
     },
     "plugins": [
       [
@@ -42,6 +43,11 @@
     ],
     "web": {
       "favicon": "./assets/nobg.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "86a911ed-56bf-4ef1-95c6-d836c1c8e46a"
+      }
     }
   }
 }

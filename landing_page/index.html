@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BarrioMed — Barangay Health Link | Digital Healthcare for Every Filipino</title>
+  <meta name="description"
+    content="BarrioMed digitizes Philippine barangay health centers with offline-first queue management, medicine tracking, digital immunization records, and e-prescriptions. Download the free Android app." />
+  <meta name="keywords"
+    content="BarrioMed, barangay health center, Philippine healthcare, digital health, offline-first, queue management, e-botika" />
+  <meta name="theme-color" content="#0d9488" />
+
+  <link rel="icon" type="image/png" href="assets/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+
+  <!-- ===== NAVBAR ===== -->
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="#" class="nav-brand">
+        <img src="assets/logo.png" alt="BarrioMed Logo" />
+        <span>BarrioMed</span>
+      </a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#showcase">Showcase</a></li>
+        <li><a href="#tech">Tech Stack</a></li>
+        <li><a href="#security">Security</a></li>
+        <li><a href="#download" class="nav-cta">Download APK</a></li>
+      </ul>
+      <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle navigation">☰</button>
+    </div>
+  </nav>
+
+  <!-- ===== HERO ===== -->
+  <section class="hero" id="hero">
+    <div class="hero-bg-orb orb-1"></div>
+    <div class="hero-bg-orb orb-2"></div>
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-badge fade-up">
+          <span class="pulse"></span>
+          Now Available for Android
+        </div>
+        <h1 class="fade-up fade-up-delay-1">
+          Healthcare at your<br />
+          <span class="gradient-text">fingertips, offline.</span>
+        </h1>
+        <p class="hero-description fade-up fade-up-delay-2">
+          BarrioMed digitizes Philippine barangay health centers — virtual queues, medicine availability, digital
+          immunization records, and e-prescriptions — all working even without internet.
+        </p>
+        <div class="hero-actions fade-up fade-up-delay-3">
+          <a href="#download" class="btn-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            Download APK
+          </a>
+          <a href="#features" class="btn-secondary">
+            Learn More
+          </a>
+        </div>
+        <div class="hero-stats fade-up fade-up-delay-3">
+          <div>
+            <div class="hero-stat-value" data-count="15" data-suffix="+">0</div>
+            <div class="hero-stat-label">Core Features</div>
+          </div>
+          <div>
+            <div class="hero-stat-value" data-count="4">0</div>
+            <div class="hero-stat-label">User Roles</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-visual fade-up">
+        <div class="phone-showcase">
+          <div class="phone-glow"></div>
+          <div class="phone-frame">
+            <img src="assets/screen-queue.png" alt="BarrioMed Queue Screen" />
+          </div>
+          <div class="floating-card card-queue">
+            <div class="fc-icon teal">🎫</div>
+            <div>
+              <div class="fc-label">Queue #15</div>
+              <div class="fc-sub">Your turn is coming</div>
+            </div>
+          </div>
+          <div class="floating-card card-medicine">
+            <div class="fc-icon amber">💊</div>
+            <div>
+              <div class="fc-label">Paracetamol</div>
+              <div class="fc-sub">✓ Available now</div>
+            </div>
+          </div>
+          <div class="floating-card card-secure">
+            <div class="fc-icon indigo">🔒</div>
+            <div>
+              <div class="fc-label">Encrypted</div>
+              <div class="fc-sub">RA 10173 Compliant</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FEATURES ===== -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="features-header fade-up">
+        <div class="section-label"><span class="dot"></span> Features</div>
+        <h2 class="section-title">Everything your barangay<br />health center needs</h2>
+        <p class="section-subtitle">From queue management to prescription tracking — BarrioMed handles it all, designed
+          for the real constraints of Philippine public healthcare.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card fade-up">
+          <div class="feature-icon teal-bg">🎫</div>
+          <h3>Virtual Pila (Queue)</h3>
+          <p>Get your queue number from home — even offline. The server assigns the real slot when connectivity returns.
+            No more lining up at dawn.</p>
+        </div>
+        <div class="feature-card fade-up fade-up-delay-1">
+          <div class="feature-icon amber-bg">💊</div>
+          <h3>E-Botika Viewer</h3>
+          <p>Check medicine availability before going to the health center. Traffic-light indicators — green for
+            available, red for out of stock — updated live by staff.</p>
+        </div>
+        <div class="feature-card fade-up fade-up-delay-2">
+          <div class="feature-icon green-bg">💉</div>
+          <h3>Digital Yellow Card</h3>
+          <p>Immunization records for adults and infants, replacing fragile paper cards. Never lose your vaccination
+            history again — it's always on your phone.</p>
+        </div>
+        <div class="feature-card fade-up">
+          <div class="feature-icon indigo-bg">📋</div>
+          <h3>E-Reseta (Prescriptions)</h3>
+          <p>Digital prescriptions with a QR code for pharmacy scanning. Doctors create, patients carry, pharmacies
+            verify — no more illegible handwriting.</p>
+        </div>
+        <div class="feature-card fade-up fade-up-delay-1">
+          <div class="feature-icon rose-bg">🩺</div>
+          <h3>SOAP Consultations</h3>
+          <p>Structured visit notes with vitals, linked to the patient's full history. Doctors can review past
+            consultations for continuity of care.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SHOWCASE ===== -->
+  <section class="showcase" id="showcase">
+    <div class="container">
+      <div class="showcase-header fade-up">
+        <div class="section-label"><span class="dot"></span> App Preview</div>
+        <h2 class="section-title">See it in action</h2>
+        <p class="section-subtitle">A glimpse into the key screens that residents, doctors, and staff interact with
+          daily.</p>
+      </div>
+
+      <div class="showcase-grid">
+        <div class="showcase-item fade-up">
+          <div class="showcase-phone">
+            <img src="assets/screen-queue.png" alt="Virtual Queue Screen" />
+          </div>
+          <h3>Virtual Pila</h3>
+          <p>Queue number assignment, even offline</p>
+        </div>
+        <div class="showcase-item fade-up fade-up-delay-1">
+          <div class="showcase-phone">
+            <img src="assets/screen-medicine.png" alt="Medicine Availability Screen" />
+          </div>
+          <h3>E-Botika</h3>
+          <p>Real-time medicine availability</p>
+        </div>
+        <div class="showcase-item fade-up fade-up-delay-2">
+          <div class="showcase-phone">
+            <img src="assets/screen-immunization.png" alt="Immunization Records Screen" />
+          </div>
+          <h3>Digital Yellow Card</h3>
+          <p>Vaccination records on your phone</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TECH STACK ===== -->
+  <section class="tech-stack" id="tech">
+    <div class="container">
+      <div class="tech-stack-header fade-up">
+        <div class="section-label"><span class="dot"></span> Tech Stack</div>
+        <h2 class="section-title">Built with modern,<br />battle-tested technology</h2>
+        <p class="section-subtitle">Every layer chosen for reliability, performance, and the realities of barangay-level
+          connectivity.</p>
+      </div>
+
+      <div class="tech-grid">
+        <div class="tech-card fade-up">
+          <span class="tech-emoji">⚛️</span>
+          <h4>React Native</h4>
+          <p>Expo managed workflow</p>
+        </div>
+        <div class="tech-card fade-up fade-up-delay-3">
+          <span class="tech-emoji">⚡</span>
+          <h4>Supabase</h4>
+          <p>PostgreSQL + Auth + Realtime</p>
+        </div>
+        <div class="tech-card fade-up">
+          <span class="tech-emoji">🦕</span>
+          <h4>Edge Functions</h4>
+          <p>Deno serverless runtime</p>
+        </div>
+        <div class="tech-card fade-up fade-up-delay-1">
+          <span class="tech-emoji">🛡️</span>
+          <h4>Row-Level Security</h4>
+          <p>DB-layer access control</p>
+        </div>
+        <div class="tech-card fade-up fade-up-delay-2">
+          <span class="tech-emoji">📱</span>
+          <h4>EAS Build</h4>
+          <p>CI/CD APK generation</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== SECURITY ===== -->
+  <section class="security" id="security">
+    <div class="container">
+      <div class="security-visual fade-up">
+        <div class="shield-graphic">
+          <div class="shield-ring"></div>
+          <div class="shield-ring"></div>
+          <div class="shield-icon">🛡️</div>
+        </div>
+      </div>
+      <div class="security-content">
+        <div class="section-label fade-up"><span class="dot"></span> Security & Compliance</div>
+        <h2 class="section-title fade-up">Your health data,<br />protected at every layer</h2>
+        <p class="section-subtitle fade-up">Compliant with the Philippine Data Privacy Act of 2012 (RA 10173). Security
+          is enforced at every layer — not just the app.</p>
+
+        <ul class="security-list">
+          <li class="fade-up">
+            <span class="sec-icon">🔒</span>
+            <div>
+              <strong>TLS 1.3 in Transit</strong>
+              <span>All data encrypted during transmission between device and server.</span>
+            </div>
+          </li>
+          <li class="fade-up fade-up-delay-1">
+            <span class="sec-icon">💾</span>
+            <div>
+              <strong>AES-256 at Rest</strong>
+              <span>Cloud data encrypted on Supabase managed disks. Device data encrypted with SQLCipher.</span>
+            </div>
+          </li>
+          <li class="fade-up fade-up-delay-2">
+            <span class="sec-icon">🔑</span>
+            <div>
+              <strong>bcrypt PIN Hashing</strong>
+              <span>PINs hashed with cost factor 12 — never stored in plaintext.</span>
+            </div>
+          </li>
+          <li class="fade-up fade-up-delay-3">
+            <span class="sec-icon">📋</span>
+            <div>
+              <strong>Append-Only Audit Trail</strong>
+              <span>Every destructive action logged permanently. No role can update or delete audit entries.</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== DOWNLOAD CTA ===== -->
+  <section class="download-cta" id="download">
+    <div class="container">
+      <div class="download-card fade-up">
+        <div class="section-label"><span class="dot"></span> Get the App</div>
+        <h2 class="section-title">Ready to digitize your<br />barangay health center?</h2>
+        <p class="section-subtitle">Download the BarrioMed Android app — free, offline-ready, and built for Filipino
+          communities.</p>
+
+        <a href="barriomed_app.apk" download class="download-btn" id="downloadBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          Download APK for Android
+        </a>
+        <div class="download-meta">
+          <span>Android 8.0+</span> · <span>v1.0.0</span> · <span>Free &amp; Open Source</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <img src="assets/logo.png" alt="BarrioMed" />
+          <span>BarrioMed</span>
+        </div>
+        <p class="footer-text">Digitizing Philippine public healthcare — one barangay at a time.</p>
+        <div class="footer-links">
+          <a href="#features">Features</a>
+          <a href="#tech">Tech Stack</a>
+          <a href="#security">Security</a>
+          <a href="#download">Download</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>Built with ❤️ for barangay health workers, nurses, and doctors who serve with limited resources and unlimited
+          dedication.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+
+</html>

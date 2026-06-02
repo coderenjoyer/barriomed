@@ -39,7 +39,6 @@ Barangay Health Centers (BHCs) are the first point of care for millions of Filip
 | **E-Reseta** | Doctors → Residents | Digital prescriptions with a QR code for pharmacy scanning. |
 | **SOAP Consultations** | Doctors | Structured visit notes with vitals, linked to the patient's full history. |
 | **Queue Dashboard** | BHC Staff | Call Next, No-Show, Complete — real-time across all connected devices. |
-| **Merge Tool** | Admins | AI-assisted duplicate patient detection with one-click record consolidation. |
 | **Audit Trail** | Admins | Append-only log of every destructive action, compliant with RA 10173. |
 
 ---
